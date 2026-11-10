@@ -3,7 +3,9 @@
  * elevation and motion are defined. Components in globals.css use these
  * variables and nothing else. See docs/design.md for the rules behind them.
  *
- * Contrast ratios are against white #FFFFFF and the canvas #F4F5F9 (WCAG 2.2 AA: 4.5:1 text, 3:1
+ * Demo palette: Northbank teal in place of the real clinic's navy; same roles and contrast rules.
+ *
+ * Contrast ratios are against white #FFFFFF and the canvas #F2F7F5 (WCAG 2.2 AA: 4.5:1 text, 3:1
  * non-text). Re-run the check in docs/design.md before changing a colour.
  */
 
@@ -69,23 +71,23 @@
   color-scheme: light;
 
   /* ---- Colour: one meaning per colour ---- */
-  --color-primary: #314083; /* 9.6:1  buttons, links, selected slot, focus ring: "you can press this" */
-  --color-primary-hover: #263366; /* 12.0:1 hover and pressed */
-  --color-primary-tint: #eef0f8; /* background: selected rows, info panels */
-  --color-brand-red: #d72a2e; /* 4.9:1  the logo ONLY: never a control, never a status */
-  --color-ink: #1b2140; /* 15.7:1 headings */
-  --color-text: #4a5068; /* 8.0:1 on white, 7.3:1 on canvas  body text (slate, tuned to the navy) */
-  --color-text-muted: #5f6580; /* 5.7:1 on white, 5.3:1 on canvas  footer and fine print */
-  --color-border: #7d8399; /* 3.8:1 on white, 3.5:1 on canvas  inputs, slots, radios (3:1 non-text) */
-  --color-divider: #d9dce8; /* decorative hairlines only, never an input border */
-  --color-hairline: rgba(27, 33, 64, 0.08); /* card edges: decorative, the shadow does the lifting */
-  --color-canvas: #f4f5f9; /* page background: soft cool grey, so white cards lift off it */
+  --color-primary: #0b6b63; /* 6.4:1  buttons, links, selected slot, focus ring: "you can press this" (demo: Northbank teal) */
+  --color-primary-hover: #08524c; /* 9.1:1 hover and pressed */
+  --color-primary-tint: #e4f3ef; /* background: selected rows, info panels (primary on it 5.6:1) */
+  --color-brand-red: #14a08a; /* the logo ONLY: never a control, never a status (demo: mint-teal, name kept for the real CSS) */
+  --color-ink: #13302b; /* 14.1:1 headings */
+  --color-text: #455651; /* 7.8:1 on white, 7.2:1 on canvas  body text (slate, tuned to the teal) */
+  --color-text-muted: #5b6b67; /* 5.6:1 on white, 5.2:1 on canvas  footer and fine print */
+  --color-border: #7b8b87; /* 3.6:1 on white, 3.3:1 on canvas  inputs, slots, radios (3:1 non-text) */
+  --color-divider: #d6e1dd; /* decorative hairlines only, never an input border */
+  --color-hairline: rgba(19, 48, 43, 0.08); /* card edges: decorative, the shadow does the lifting */
+  --color-canvas: #f2f7f5; /* page background: soft cool green-grey, so white cards lift off it */
   --color-surface: #ffffff; /* cards, inputs, header, footer */
-  --color-surface-alt: #f6f7fb; /* quiet fills inside white cards (badges, disabled, skeletons) */
+  --color-surface-alt: #f4f9f7; /* quiet fills inside white cards (badges, disabled, skeletons) */
   --color-error: #b42318; /* 6.6:1  error text, destructive confirmations: always with an icon and words */
   --color-error-tint: #fdf0ef; /* error panel background (error text on it 5.9:1) */
-  --color-success: #1e6b45; /* 6.5:1  confirmation banner, "Paid" */
-  --color-success-tint: #eaf3ee; /* success panel background (success text on it 5.7:1) */
+  --color-success: #2f6b1e; /* 6.5:1  confirmation banner, "Paid" (leaf green, apart from the teal) */
+  --color-success-tint: #eaf4e6; /* success panel background (success text on it 5.7:1) */
   --color-warning: #8a5300; /* 6.3:1 on white, 5.8:1 on its tint: "inside 24 hours, a fee applies" */
   --color-warning-tint: #fff4e0;
   --color-highlight: #e8590c; /* 3.6:1 on white. ONLY the rings drawn over screenshots in guides, always with a white halo */
@@ -124,9 +126,9 @@
   --border-width: 1px;
 
   /* ---- Elevation: navy-tinted. Cards rest low; hover lifts a little; floating bars sit highest ---- */
-  --shadow-card: 0 1px 2px rgba(27, 33, 64, 0.04), 0 4px 14px rgba(27, 33, 64, 0.05);
-  --shadow-card-hover: 0 2px 4px rgba(27, 33, 64, 0.06), 0 10px 24px rgba(27, 33, 64, 0.08);
-  --shadow-float: 0 1px 2px rgba(49, 64, 131, 0.08), 0 6px 16px rgba(49, 64, 131, 0.12);
+  --shadow-card: 0 1px 2px rgba(19, 48, 43, 0.04), 0 4px 14px rgba(19, 48, 43, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(19, 48, 43, 0.06), 0 10px 24px rgba(19, 48, 43, 0.08);
+  --shadow-float: 0 1px 2px rgba(11, 107, 99, 0.08), 0 6px 16px rgba(11, 107, 99, 0.12);
 
   /* ---- Focus: 2px primary with a 2px white offset, everywhere ---- */
   --focus-width: 2px;

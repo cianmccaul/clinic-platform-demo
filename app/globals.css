@@ -589,7 +589,7 @@ time,
 .select-inline {
   appearance: none;
   padding-right: var(--space-7);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23314083' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b6b63' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   background-size: 20px;
@@ -927,7 +927,7 @@ time,
 }
 
 .option:hover {
-  border-color: rgba(49, 64, 131, 0.35);
+  border-color: rgba(11, 107, 99, 0.35);
   box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
 }

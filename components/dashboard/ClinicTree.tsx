@@ -9,7 +9,7 @@ const TRUNK = "#7a5a3a";
 const LEAF = "#2f7d4f";
 const LEAF_LIGHT = "#5aa36f";
 const BLOSSOM = "#e48aa8";
-const GROUND = "#e3e6ef";
+const GROUND = "#dde8e4";
 
 // Canopy blobs (x, y, r) of the full tree; smaller stages scale them down.
 const BLOBS: [number, number, number][] = [

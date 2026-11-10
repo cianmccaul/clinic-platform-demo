@@ -15,7 +15,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#F4F5F9",
+  themeColor: "#F2F7F5",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="footer-top">
               <div className="footer-brand">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/northbank-wordmark.svg" alt="Northbank" width={86} height={32} />
+                <img src="/northbank-wordmark.svg" alt="Northbank" width={89} height={32} />
                 <address>
                   Northbank Physio
                   <br />

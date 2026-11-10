@@ -20,7 +20,7 @@ import { whenShort } from "./format.ts";
 import { fillTemplate, type EmailOverrides } from "./email-templates.ts";
 import { CLINIC_PHONE } from "./policy.ts";
 
-const NAVY = "#314083";
+const NAVY = "#0b6b63"; // demo: Northbank teal
 const LOGO_RED = "#D72A2E"; // the logo only
 const INK = "#1B2140";
 const TEXT = "#4D4D4D";

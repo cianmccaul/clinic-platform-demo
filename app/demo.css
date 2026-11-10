@@ -48,7 +48,7 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(27, 33, 64, 0.35);
+  background: rgba(19, 48, 43, 0.35);
   display: flex;
   justify-content: flex-end;
 }
@@ -58,7 +58,7 @@
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  box-shadow: -8px 0 32px rgba(27, 33, 64, 0.18);
+  box-shadow: -8px 0 32px rgba(19, 48, 43, 0.18);
 }
 .demo-inbox-head {
   display: flex;

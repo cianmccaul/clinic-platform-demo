@@ -108,7 +108,7 @@ export function SiteHeader({ variant = "patient" }: { variant?: "patient" | "sta
       <div className="site-header-inner">
         <a className="site-logo" href={staff ? "/dashboard" : "/"}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/northbank-wordmark.svg" alt={staff ? "Northbank dashboard" : "Northbank: book an appointment"} width={107} height={40} />
+          <img src="/northbank-wordmark.svg" alt={staff ? "Northbank dashboard" : "Northbank: book an appointment"} width={111} height={40} />
         </a>
         <div className="site-header-meta">
           {staff && <span className="staff-label">Dashboard</span>}
