@@ -177,12 +177,12 @@ test("REQ-VOU-012 what an amount covers, from live prices", () => {
 
 test("REQ-VOU-013 per-therapist totals: uses minus undos", () => {
   const t = totalsByTherapist([
-    { practitionerId: "1", practitionerName: "Clare K", amountMinor: 7500 },
+    { practitionerId: "1", practitionerName: "Clare M", amountMinor: 7500 },
     { practitionerId: "2", practitionerName: "Anna B", amountMinor: 5000 },
-    { practitionerId: "1", practitionerName: "Clare K", amountMinor: 2500 },
+    { practitionerId: "1", practitionerName: "Clare M", amountMinor: 2500 },
     { practitionerId: "2", practitionerName: "Anna B", amountMinor: -5000 },
   ]);
-  assert.deepEqual(t, [{ practitionerId: "1", name: "Clare K", amountMinor: 10000, count: 2 }]);
+  assert.deepEqual(t, [{ practitionerId: "1", name: "Clare M", amountMinor: 10000, count: 2 }]);
 });
 
 // ---- v2 (29 Oct 2026)

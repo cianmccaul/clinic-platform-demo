@@ -13,7 +13,7 @@ import WaitlistAdd from "@/components/dashboard/WaitlistAdd";
  * Reception's waitlist board (core/waitlist.ts): who is waiting for what,
  * who has been offered a time (and until when), and what ended recently.
  * Pause or remove someone, take back an offer, or offer a time by hand.
- * Add a patient who asks by phone or at the desk (Clare, 6 Nov 2026).
+ * Add a patient who asks by phone or at the desk (6 Nov 2026).
  */
 export default function WaitlistPage() {
   return (

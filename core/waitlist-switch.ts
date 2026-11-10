@@ -1,5 +1,5 @@
 /**
- * The waitlist's on/off switch (Joan & Cian, 3 Nov 2026: "turn off the
+ * The waitlist's on/off switch (3 Nov 2026: "turn off the
  * waitlist for now", during the two quiet weeks after the Cliniko switch).
  * OFF unless NEXT_PUBLIC_WAITLIST=on in Vercel (then redeploy). While off:
  * no "Join the waitlist" links, /waitlist says it's closed, joining is

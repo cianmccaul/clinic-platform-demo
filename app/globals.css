@@ -2850,35 +2850,8 @@ a.option {
 .tstats-bar .field {
   min-width: 220px;
 }
-.tstat-headline {
-  font-size: var(--text-h3);
-  font-weight: var(--weight-semibold);
-}
-.tstat-meter {
-  height: 12px;
-  border-radius: var(--radius-pill);
-  background: var(--color-divider);
-  overflow: hidden;
-}
-.tstat-meter > span {
-  display: block;
-  height: 100%;
-  background: var(--color-primary);
-}
-.tstat-here > * {
-  background: var(--color-primary-tint);
-}
-.tstat-tiers .field-row {
-  align-items: flex-end;
-}
-.tstat-remove {
-  margin-bottom: var(--space-1);
-}
-.tstat-calc {
-  margin-top: var(--space-3);
-}
 
-/* Therapist statement (stats only), laid out like the room-rentals Statement of Earnings. */
+/* One therapist's month on the scorecard. */
 .tstmt {
   display: grid;
   gap: var(--space-5);
@@ -2892,35 +2865,10 @@ a.option {
   padding-bottom: var(--space-4);
   border-bottom: 3px solid var(--color-primary);
 }
-.tstmt-badge {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  color: var(--color-surface);
-  font-size: var(--text-secondary);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.tstmt-block {
-  display: grid;
-  gap: var(--space-3);
-}
-.tstmt-label {
-  font-size: var(--text-secondary);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-}
 .tstmt-boxes {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
-}
-.tstmt-boxes.is-two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-width: 420px;
 }
 .tstmt-box {
   display: grid;
@@ -2931,7 +2879,7 @@ a.option {
   text-align: center;
 }
 .tstmt-box > span {
-  font-size: var(--text-secondary);
+  font-size: var(--text-meta);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -2939,52 +2887,20 @@ a.option {
   font-size: var(--text-h2);
   color: var(--color-primary);
 }
-@media (max-width: 599px) {
-  .tstmt-boxes {
-    grid-template-columns: 1fr;
-  }
+.tstmt-box > small {
+  font-size: var(--text-meta);
 }
-.tstmt-total > * {
-  font-weight: var(--weight-semibold);
-  background: var(--color-primary-tint);
-}
-.tstmt-tiers {
-  list-style: none;
+.score-prompts {
   margin: 0;
-  padding: 0;
-  border: var(--border-width) solid var(--color-hairline);
-  border-radius: var(--radius-panel);
-  overflow: hidden;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-ink);
 }
-.tstmt-tiers li {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-divider);
-}
-.tstmt-tiers li:last-child {
-  border-bottom: 0;
-}
-.tstmt-tiers li.is-here {
-  background: var(--color-primary);
-  color: var(--color-surface);
-  font-weight: var(--weight-semibold);
-}
-.tstmt-note {
-  font-style: italic;
-}
-/* Fold-out panels on the therapist stats page ("Change … rules", "Work out max patients"). */
-.tstat-panel > summary {
-  cursor: pointer;
-  min-height: var(--target);
-  display: flex;
-  align-items: center;
-  font-weight: var(--weight-semibold);
-  color: var(--color-primary);
-}
-.tstmt-rules {
-  padding-top: var(--space-4);
-  border-top: var(--border-width) solid var(--color-divider);
+@media (max-width: 899px) {
+  .tstmt-boxes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Gift voucher at checkout (v2) */

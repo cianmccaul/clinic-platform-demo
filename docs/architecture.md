@@ -6,7 +6,7 @@ This demo is a public version of a platform I built for a multi-therapist physio
 
 - **Patients** book and pay online, sign in with an emailed code to cancel or move under the 24-hour policy, buy gift vouchers, and join a waitlist.
 - **Reception** runs the day from one dashboard: payments, refunds, no-show and late-cancellation fees, phone bookings with pay links, extra treatments, timesheets and tasks.
-- **Therapists** are paid directly into their own payment accounts, and get monthly rent invoices.
+- **Therapists** are paid directly into their own payment accounts.
 - **Owners** see KPIs, a daily payments summary, and every action in an audit log.
 - **Everyone** has a help centre with step-by-step guides, so the clinic can run the system without its developer.
 
@@ -48,7 +48,7 @@ Therapists are self-employed, so the money is theirs, not the clinic's. Each the
 - the therapist pays their own card fees,
 - refunds, saved cards and webhooks live on the therapist's account (a separate Connect webhook endpoint),
 - payments only route to a therapist once their account can take charges and is set up to pay its own fees. Until then they go to the clinic,
-- one therapist is employed by the clinic, so her appointments are booked by phone only and paid on the clinic's account.
+- staff the clinic pays itself are charged on the clinic's own account instead.
 
 Gift vouchers are the one exception: they're sold on the clinic's account, because nobody knows which therapist a voucher will be used with.
 

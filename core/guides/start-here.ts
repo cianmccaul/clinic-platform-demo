@@ -20,7 +20,7 @@ export const START_HERE_GUIDES: Guide[] = [
         ],
       },
       { type: "text", text: "The diary is always the source of truth for who is booked when. The dashboard asks the diary every time, so it never shows an out-of-date copy." },
-      { type: "callout", tone: "info", title: "Therapists are paid directly", text: "Every payment for your appointments goes straight into your own Stripe account. The clinic invoices room rent separately at the end of the month." },
+      { type: "callout", tone: "info", title: "Therapists are paid directly", text: "Every payment for your appointments goes straight into your own Stripe account." },
     ],
   },
 ];

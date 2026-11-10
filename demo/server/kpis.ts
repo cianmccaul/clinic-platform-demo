@@ -29,7 +29,7 @@ function history(today: string): Appt[] {
   for (let day = first; day <= last; day = addDays(day, 1), i++) {
     const week = Math.floor(i / 7);
     // Busier over the months, with a summer dip and some week-to-week noise.
-    const fill = 0.66 + 0.1 * (week / HISTORY_WEEKS) - (day.slice(5, 7) === "08" ? 0.12 : 0) + (r() - 0.5) * 0.12;
+    const fill = 0.82 + 0.08 * (week / HISTORY_WEEKS) - (day.slice(5, 7) === "08" ? 0.12 : 0) + (r() - 0.5) * 0.12;
     for (const p of PRACTITIONERS) {
       const hours = p.hours[weekday(day)];
       if (!hours) continue;

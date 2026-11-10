@@ -188,6 +188,19 @@ describe("reception", () => {
     expect(entry.status).toBe("filled");
   });
 
+  test("the therapist scorecard compares each therapist with their own usual, with no rent or tiers", () => {
+    const db = seedDb(NOW);
+    const d = call(db, "GET", "/api/admin/therapist-stats?month=2026-10").json.data;
+    expect(d.fromDay).toBe("2026-10-01");
+    expect(d.toDay).toBe("2026-10-31");
+    const sarah = d.rows.find((r: { practitionerId: string }) => r.practitionerId === "101");
+    expect(sarah.month.howFull).toBeGreaterThan(0.4);
+    expect(sarah.month.howFull).toBeLessThan(1);
+    expect(sarah.usual.visits).toBeGreaterThan(0);
+    expect(sarah.prompts.length).toBeGreaterThan(0);
+    expect(JSON.stringify(d)).not.toMatch(/tier|rent/i);
+  });
+
   test("view-only areas answer with sample data; the KPI report runs on the demo diary", () => {
     const db = seedDb(NOW);
     for (const path of ["/api/admin/vouchers", "/api/staff/tasks", "/api/admin/shifts", "/api/staff/team", "/api/admin/email-templates", "/api/staff/guides", "/api/admin/therapist-stats"]) {

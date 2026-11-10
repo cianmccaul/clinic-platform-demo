@@ -1,6 +1,6 @@
 /**
  * Therapists patients can't book online, only by phone through reception
- * (Clare, call-by-appointment; issue 2, 3 Nov 2026).
+ * (call-by-appointment; issue 2, 3 Nov 2026).
  *
  * Cliniko only gives the Hub free times for practitioners and treatments
  * switched ON for online bookings (its available_times answers 404
@@ -10,7 +10,7 @@
  * "Phone only". PHONE_ONLY_PRACTITIONER_IDS (comma-separated) adds more.
  * Pure, unit-tested in tests/phone-only.test.ts.
  */
-const BUILT_IN = ["105"]; // Clare Morgan (clinic owner, demo)
+const BUILT_IN = ["105"]; // Clare Morgan (demo): booked by phone, paid on the clinic's account
 
 export function phoneOnlyIds(env: Record<string, string | undefined> = process.env): Set<string> {
   const extra = (env.PHONE_ONLY_PRACTITIONER_IDS ?? "")

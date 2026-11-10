@@ -1,5 +1,5 @@
 /**
- * Gift vouchers (plan-2026-10-28-gift-vouchers, decided with Cian/Joan 28 Oct 2026).
+ * Gift vouchers (plan-2026-10-28-gift-vouchers, decided 28 Oct 2026).
  *
  * A voucher is a euro amount, bought online (paid to the clinic's own Stripe
  * account) or at the desk, used towards any treatment in one visit or several.

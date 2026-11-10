@@ -11,7 +11,7 @@ import { parseEuroInput, visitAmountRefusal, VISIT_LINK_DAYS, VISIT_LOOKBACK_DAY
  * Take a payment for an appointment that's already happened (6 Nov 2026,
  * lib/visit-payments.ts). Therapists see their own appointments; reception
  * and owners choose the therapist first. Money goes to the therapist's own
- * Stripe account, or Northbank's for Clare.
+ * Stripe account, or Northbank's for clinic-paid staff.
  */
 export default function TakePaymentPage() {
   return (

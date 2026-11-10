@@ -1,5 +1,5 @@
 /**
- * Waitlist rules (clinic request from Clare, 26 Oct 2026).
+ * Waitlist rules (clinic request, 26 Oct 2026).
  *
  * A patient joins the list for one treatment, with one therapist or "any",
  * and the days and parts of the day that suit them. When a time opens in
@@ -16,7 +16,7 @@ import { dayPart, timeShort, whenShort, type DayPart } from "./format.ts";
 import { toE164 } from "./phone-booking.ts";
 import { fillTemplate, type EmailOverrides } from "./email-templates.ts";
 
-/** How long each patient has to accept an offer (Clare, 26 Oct 2026). */
+/** How long each patient has to accept an offer (26 Oct 2026). */
 export const OFFER_WINDOW_MINUTES = 120;
 /** No automatic offers when the time starts in under 3 hours: too late to act on. */
 export const MIN_NOTICE_MINUTES = 180;

@@ -223,7 +223,7 @@ function Vouchers() {
                   }}
                 >
                   <div className="field">
-                    <label htmlFor="v-period">Rent period (29th to 28th) ending in</label>
+                    <label htmlFor="v-period">Month</label>
                     <input id="v-period" type="month" value={period || overview.period.month} onChange={(e) => setPeriod(e.target.value)} />
                   </div>
                   <div className="field">
@@ -233,10 +233,10 @@ function Vouchers() {
                   </div>
                 </form>
                 <p className="secondary">
-                  {dayText(overview.period.fromDay)} to {dayText(overview.period.toDay)}. The clinic pays each therapist the full amount used with them. Counted by the day it was entered here, so a period that&apos;s over never changes: an undo shows as a minus in the period it was undone. A minus means the therapist was paid for it already: take it off their next payment.
+                  {dayText(overview.period.fromDay)} to {dayText(overview.period.toDay)}. Counted by the day it was entered here, so a month that&apos;s over never changes: an undo shows as a minus in the month it was undone.
                 </p>
                 {overview.period.therapists.length === 0 ? (
-                  <p className="secondary">No vouchers used in this period.</p>
+                  <p className="secondary">No vouchers used this month.</p>
                 ) : (
                   <div className="table-wrap" role="region" aria-label="Vouchers used with each therapist" tabIndex={0}>
                     <table className="guide-table">

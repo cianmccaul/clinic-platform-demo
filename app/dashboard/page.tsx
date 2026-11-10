@@ -55,7 +55,7 @@ export default function DashboardHome() {
           )}
           {has("tasks:use") && <Tile href="/dashboard/tasks" title="Tasks" desc="Your list for the week, tasks for colleagues, repeating jobs, and the clinic tree" />}
           {has("kpis:view") && <Tile href="/dashboard/kpis" title="Clinic KPIs" desc="New and returning patients, rebooking, cancellations, no-shows and revenue, per therapist" />}
-          {has("kpis:view") && <Tile href="/dashboard/therapists" title="Therapist stats" desc="Each therapist's month: sessions, how full, their tier and what was billed" />}
+          {has("kpis:view") && <Tile href="/dashboard/therapists" title="Therapist stats" desc="Each therapist's month next to their own usual: how full, rebooking and missed visits" />}
           {has("shifts:manage") && <Tile href="/dashboard/shifts" title="Therapist shifts" desc="Alternate Saturdays, two Mondays a month and other days Cliniko can't repeat" />}
           {has("emails:edit") && <Tile href="/dashboard/emails" title="Emails" desc="The words in the emails the Hub sends patients and staff, and changing them" />}
           {has("staff:manage") && <Tile href="/dashboard/team" title="Team" desc="Add staff, change roles, switch accounts off, reset someone’s sign-in" />}

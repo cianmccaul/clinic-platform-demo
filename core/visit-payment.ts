@@ -1,6 +1,6 @@
 /**
- * "Take a payment for an appointment that's already happened" (Joan & Cian,
- * 6 Nov 2026). A therapist (or reception, for any therapist) picks one of the
+ * "Take a payment for an appointment that's already happened"
+ * (6 Nov 2026). A therapist (or reception, for any therapist) picks one of the
  * therapist's recent Cliniko appointments, checks the email and the amount,
  * and either opens the payment page there and then for the patient, or emails
  * them a link. Pure, no I/O, unit-tested in tests/visit-payment.test.ts.
@@ -11,7 +11,7 @@
  * Northbank's own account, even if one of them is ever onboarded to Stripe.
  */
 
-const CLINIC_PAID_BUILT_IN = ["105"]; // Clare Morgan (clinic owner, demo)
+const CLINIC_PAID_BUILT_IN = ["105"]; // Clare Morgan (demo): booked by phone, paid on the clinic's account
 
 export function clinicPaidIds(env: Record<string, string | undefined> = process.env): Set<string> {
   const extra = (env.CLINIC_PAID_PRACTITIONER_IDS ?? "")

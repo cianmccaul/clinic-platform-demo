@@ -8,7 +8,7 @@ import { euro, formatDublin } from "@/core/policy";
 import { dayLong, whenLong, whenShort } from "@/core/format";
 
 /**
- * Appointments (Clare's issues 2 and 4, 3 Nov 2026): find any patient and
+ * Appointments (clinic issues 2 and 4, 3 Nov 2026): find any patient and
  * move or cancel their appointments here, whether they were booked online,
  * by phone or straight into Cliniko. Also the payments kept for a new time
  * when the time someone paid for had gone (lib/rebook.ts).

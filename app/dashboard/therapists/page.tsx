@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Notice } from "@/components/Brand";
 import { DashboardShell, StaffGate } from "@/components/dashboard/staff";
 import { euros } from "@/core/kpi2";
-import { DEFAULT_TIERS, DAY_KINDS, maxPatientsFromHours, periodMonthFor, periodRange, tierProblem, type DayKind, type RentModel, type Tier } from "@/core/therapist-stats";
-import type { TherapistReport, TherapistRow } from "@/lib/therapist-stats";
+import type { Measures, Scorecard, ScoreRow } from "@/demo/server/scorecard";
 
 /**
- * Therapist stats (Cian, 27 Oct 2026): each therapist's rent period (29th to 28th)
- * in the figures the room-rentals tool works from, read from Cliniko invoices and
- * laid out like its Statement of Earnings: capacity, revenue breakdown, tier table,
- * machine sessions. Owners and super admins only. Stats only: no rent amounts.
+ * Practitioner scorecard (demo): each therapist's calendar month in the measures
+ * clinics commonly review with a practitioner (how full the diary was, rebooking,
+ * missed appointments, new patients, visits per patient, fee per visit), set
+ * against their own previous three months and common published ranges. Meant
+ * for one-to-one check-ins, so it compares each person with themselves.
  */
 export default function TherapistStatsPage() {
   return (
@@ -21,57 +21,74 @@ export default function TherapistStatsPage() {
   );
 }
 
-const DAY_LABEL: Record<DayKind, string> = { weekday: "Weekdays", saturday: "Saturdays", sunday: "Sundays", bankHoliday: "Bank holidays" };
-const MODEL_LABEL: Record<RentModel, string> = { capacity: "Capacity tiers", hybrid: "Hybrid (tiers on weekdays)", fixed: "Fixed amount or flat % (no capacity)" };
-const MODEL_BADGE: Record<RentModel, string> = { capacity: "Revenue share", hybrid: "Hybrid", fixed: "Fixed / flat rate" };
-const pct1 = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
-const ratePct = (f: number) => `${Math.round(f * 1000) / 10}%`;
-const band = (t: Tier, last: boolean) => (last ? `${t.min}%+` : `${t.min}–${t.max}%`);
-const fmtWhen = (iso: string) => new Date(iso).toLocaleString("en-IE", { timeZone: "Europe/Dublin", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" });
+const pct = (r: number | null) => (r == null ? "–" : `${Math.round(r * 100)}%`);
+const num = (n: number | null) => (n == null ? "–" : String(n));
+const money = (m: number | null) => (m == null ? "–" : euros(m));
 const monthLabel = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString("en-IE", { month: "long", year: "numeric" });
-const periodText = (m: string) => {
-  const r = periodRange(m);
-  return `${fmtDay(r.fromDay)} – ${fmtDay(r.toDay)}`;
-};
+const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-IE", { day: "numeric", month: "short" });
 
-/** The running period and the 11 before it ("2026-10" = 29 Sep – 28 Oct). */
-function recentPeriods(n = 12) {
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  const [y, m] = periodMonthFor(today).split("-").map(Number);
+function recentMonths(n = 6) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin" }).format(new Date());
+  const [y, m] = today.split("-").map(Number);
   return Array.from({ length: n }, (_, i) => new Date(Date.UTC(y, m - 1 - i, 15)).toISOString().slice(0, 7));
 }
 
-async function call(method: "GET" | "POST", body?: unknown, month?: string) {
-  const url = method === "GET" ? `/api/admin/therapist-stats?month=${month}` : "/api/admin/therapist-stats";
-  const res = await fetch(url, { method, cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Something went wrong. Try again.");
-  return json;
+type Key = "howFull" | "rebooked" | "missed" | "newPatients" | "visitsPerPatient" | "feePerVisitMinor" | "perAvailableHourMinor" | "visits";
+type Measure = { key: Key; label: string; show: (m: Measures) => string; higherIsBetter: boolean; range?: string; meaning: string };
+
+const MEASURES: Measure[] = [
+  { key: "visits", label: "Visits", show: (m) => num(m.visits), higherIsBetter: true, meaning: "Appointments the patient came to." },
+  { key: "howFull", label: "How full", show: (m) => pct(m.howFull), higherIsBetter: true, range: "Common aim: 75–85%", meaning: "Booked time out of their working hours." },
+  { key: "rebooked", label: "Rebooked", show: (m) => pct(m.rebooked), higherIsBetter: true, meaning: "Patients who left with their next visit booked." },
+  { key: "missed", label: "Missed", show: (m) => pct(m.missed), higherIsBetter: false, range: "Common aim: under 10%", meaning: "No-shows and cancellations inside 24 hours." },
+  { key: "newPatients", label: "New patients", show: (m) => num(m.newPatients), higherIsBetter: true, meaning: "First visits seen this month." },
+  { key: "visitsPerPatient", label: "Visits / patient", show: (m) => num(m.visitsPerPatient), higherIsBetter: true, meaning: "How often each patient came, over the last 90 days." },
+  { key: "feePerVisitMinor", label: "Fee per visit", show: (m) => money(m.feePerVisitMinor), higherIsBetter: true, meaning: "Average fee for a visit, at list prices." },
+  { key: "perAvailableHourMinor", label: "Per hour", show: (m) => money(m.perAvailableHourMinor), higherIsBetter: true, meaning: "Fees for visits ÷ the hours they were available to see patients." },
+];
+
+/** Up, down or about the same as their usual, and whether that's good. */
+function change(m: Measures, u: Measures, x: Measure) {
+  const a = m[x.key];
+  const b = u[x.key];
+  if (a == null || b == null || (b === 0 && !["howFull", "rebooked", "missed"].includes(x.key))) return null;
+  // Rates move by percentage points (3 or more counts); counts and money by 5% or more.
+  const isRate = x.key === "howFull" || x.key === "rebooked" || x.key === "missed";
+  const diff = isRate ? a - b : (a - b) / Math.abs(b);
+  if (Math.abs(diff) < (isRate ? 0.03 : 0.05)) return { dir: "same" as const, good: null };
+  const up = diff > 0;
+  return { dir: up ? ("up" as const) : ("down" as const), good: up === x.higherIsBetter };
+}
+
+function Arrow({ m, u, x }: { m: Measures; u: Measures; x: Measure }) {
+  const c = change(m, u, x);
+  if (!c || c.dir === "same") return null;
+  return (
+    <span className={`kpi-change ${c.good ? "is-good" : "is-bad"}`} aria-label={`${c.dir === "up" ? "up" : "down"} on their usual`}>
+      {" "}
+      {c.dir === "up" ? "▲" : "▼"}
+    </span>
+  );
 }
 
 function Stats() {
-  const months = useMemo(() => recentPeriods(), []);
+  const months = useMemo(() => recentMonths(), []);
   const [month, setMonth] = useState(months[0]);
-  const [d, setD] = useState<TherapistReport | null>(null);
+  const [d, setD] = useState<Scorecard | null>(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const wanted = useRef(month);
 
-  const load = useCallback(async (m: string, refresh = false) => {
+  const load = useCallback(async (m: string) => {
     wanted.current = m;
-    setBusy(true);
     setError("");
     try {
-      const j = refresh ? await call("POST", { action: "refresh", month: m }) : await call("GET", undefined, m);
-      if (wanted.current !== m) return; // another period was picked meanwhile
-      setD(j.data);
+      const res = await fetch(`/api/admin/therapist-stats?month=${m}`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Couldn't work out the figures.");
+      if (wanted.current === m) setD(json.data);
     } catch (e: any) {
       if (wanted.current === m) setError(e.message);
-    } finally {
-      if (wanted.current === m) setBusy(false);
     }
   }, []);
   useEffect(() => {
@@ -79,35 +96,24 @@ function Stats() {
     load(month);
   }, [month, load]);
 
-  const isCurrent = month === months[0];
-  const src = d?.source;
-
   return (
     <DashboardShell
       title="Therapist stats"
-      lede="Each therapist's rent period (29th to 28th) from Cliniko invoices, laid out like their statement: how full they were, what was billed, and which tier that puts them in. Owners and super admins only."
+      lede="Each therapist's month next to their own usual (the three months before) and the ranges clinics commonly aim for. For one-to-one check-ins, not a league table."
     >
       <div className="stack-5 tstats">
         <div className="tstats-bar">
           <div className="field">
-            <label htmlFor="ts-month">Period</label>
+            <label htmlFor="ts-month">Month</label>
             <select id="ts-month" value={month} onChange={(e) => setMonth(e.target.value)}>
               {months.map((m, i) => (
                 <option key={m} value={m}>
-                  {monthLabel(m)}: {periodText(m)}
+                  {monthLabel(m)}
                   {i === 0 ? " (so far)" : ""}
                 </option>
               ))}
             </select>
           </div>
-          {d && (
-            <p className="kpi-updated">
-              Worked out {fmtWhen(d.computedAt)} ·{" "}
-              <button className="kpi-link" disabled={busy} onClick={() => load(month, true)}>
-                {busy ? "Refreshing…" : "Refresh now"}
-              </button>
-            </p>
-          )}
         </div>
 
         {error && (
@@ -115,114 +121,83 @@ function Stats() {
             <p>{error}</p>
           </Notice>
         )}
-        {notice && (
-          <Notice tone="success">
-            <p>{notice}</p>
-          </Notice>
-        )}
+        {!d && !error && <p className="secondary">Working out the figures…</p>}
 
-        {!d && !error && <p className="secondary">Reading this period&apos;s invoices from Cliniko. This can take up to a minute…</p>}
-
-        {d && src && (
+        {d && (
           <>
-            {src.counted === 0 && !src.hubReceipts && (
-              <Notice title="No sessions found in Cliniko for this period">
-                <p>
-                  Cliniko has {src.invoices} invoice{src.invoices === 1 ? "" : "s"} dated {fmtDay(d.fromDay)} to {fmtDay(d.toDay)}
-                  {src.otherBusinesses.length ? `, of which ${src.otherBusinesses.map((b) => `${b.invoices} ${b.invoices === 1 ? "is" : "are"} in ${b.name}`).join(" and ")} (not counted here)` : ""}
-                  {src.noTherapist ? `, and ${src.noTherapist} with no therapist on them` : ""}.
-                  {src.invoices === 0 ? " Therapists' sessions only show here once they're invoiced in Cliniko." : ""}
-                </p>
-              </Notice>
-            )}
-            {d.notes.length > 0 && (
-              <Notice title="Worth knowing">
-                {d.notes.map((n) => (
-                  <p key={n}>{n}</p>
-                ))}
-              </Notice>
-            )}
-
             <section className="panel" aria-labelledby="ts-all">
               <h2 id="ts-all">
                 {monthLabel(d.month)}: {fmtDay(d.fromDay)} – {fmtDay(d.toDay)}
-                {isCurrent ? ", so far" : ""}
+                {d.soFar ? ", so far" : ""}
               </h2>
-              {d.rows.length === 0 ? (
-                <p className="secondary">No therapists with rules or invoices for this period.</p>
-              ) : (
-                <div className="table-wrap kpi-table-wrap">
-                  <table className="guide-table kpi-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Therapist</th>
-                        <th scope="col">Patients</th>
-                        <th scope="col">Max</th>
-                        <th scope="col">How full</th>
-                        <th scope="col">Tier</th>
-                        <th scope="col">To next tier</th>
-                        <th scope="col">Billed</th>
-                        {isCurrent && <th scope="col">On pace for</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {d.rows.map((r) => (
-                        <tr key={r.practitionerId}>
-                          <th scope="row">
-                            <button className="kpi-link" aria-expanded={open === r.practitionerId} aria-controls={`ts-${r.practitionerId}`} onClick={() => setOpen(open === r.practitionerId ? null : r.practitionerId)}>
-                              {r.name}
-                            </button>
-                          </th>
-                          <td className="tnum">{r.stats.sessions}</td>
-                          <td className="tnum">{r.rules.model === "fixed" ? "–" : r.rules.maxPatients ?? "not set"}</td>
-                          <td className="tnum">{r.capacity ? pct1(r.capacity.pct) : "–"}</td>
-                          <td>{r.capacity ? `${band(r.capacity.tier, r.capacity.tierIndex === r.tiers.length - 1)} · ${ratePct(r.capacity.tier.pct)}` : r.rules.model === "fixed" ? "Fixed" : "–"}</td>
-                          <td className="tnum">{r.capacity ? (r.capacity.toNextTier == null ? "Top tier" : `${r.capacity.toNextTier} more`) : "–"}</td>
-                          <td className="tnum">{euros(r.stats.billedMinor)}</td>
-                          {isCurrent && <td className="tnum">{r.pace == null ? "–" : `${r.pace}${r.paceCapacityPct != null ? ` (${pct1(r.paceCapacityPct)})` : ""}`}</td>}
-                        </tr>
+              <div className="table-wrap kpi-table-wrap">
+                <table className="guide-table kpi-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Therapist</th>
+                      {MEASURES.map((x) => (
+                        <th scope="col" key={x.key}>
+                          {x.label}
+                        </th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <p className="kpi-conf">Press a name for their statement and rules.{isCurrent ? " On pace for is rough: patients so far, scaled by working days (Mon–Sat) left in the period." : ""}</p>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.rows.map((r) => (
+                      <tr key={r.practitionerId}>
+                        <th scope="row">
+                          <button className="kpi-link" aria-expanded={open === r.practitionerId} aria-controls={`ts-${r.practitionerId}`} onClick={() => setOpen(open === r.practitionerId ? null : r.practitionerId)}>
+                            {r.name}
+                          </button>
+                        </th>
+                        {MEASURES.map((x) => (
+                          <td className="tnum" key={x.key}>
+                            {x.show(r.month)}
+                            <Arrow m={r.month} u={r.usual} x={x} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="kpi-conf">▲ ▼ compare with their own usual (a change of 3 points, or 5%, or more): green is better, amber is worse. Press a name for their month and some prompts for a check-in.</p>
             </section>
 
             {d.rows
               .filter((r) => r.practitionerId === open)
               .map((r) => (
-                <Statement
-                  key={`${r.practitionerId}:${r.rules.updatedAt ?? ""}`}
-                  r={r}
-                  d={d}
-                  isCurrent={isCurrent}
-                  onSaved={async (msg) => {
-                    setNotice(msg);
-                    await load(month);
-                  }}
-                  onError={setError}
-                />
+                <Card key={r.practitionerId} r={r} d={d} />
               ))}
 
             <section className="panel" aria-labelledby="ts-defs">
               <h2 id="ts-defs">How these are worked out</h2>
-              <ul className="kpi-defs">
-                <li><strong>Period:</strong> the 29th of the month before to the 28th, as on the statements.</li>
-                <li><strong>Patients (sessions):</strong> invoices in Cliniko dated in the period with an amount billed, paid or not, plus the Hub&apos;s own receipts for online payments (by date of treatment, less refunds). Late-cancel and no-show fees count once anything was billed, as in the room-rentals tool. Invoices for €0 aren&apos;t counted; they&apos;re listed so you can check them.</li>
-                <li><strong>Credit notes:</strong> take their amount off the invoice they reverse. A fully reversed invoice isn&apos;t a session.</li>
-                <li><strong>How full:</strong> patients ÷ max capacity. Reaching a tier&apos;s top moves you into the next one (70.0% is in 70–80%).</li>
-                <li><strong>Billed:</strong> invoice totals by the invoice&apos;s date: weekday, Saturday, Sunday or Irish bank holiday. (The room-rentals tool counts bank holidays as weekdays, except for hybrid therapists on the dates they list.)</li>
-                <li><strong>Shockwave and laser:</strong> sessions with an invoice item named like that.</li>
-                <li>Only the clinic&apos;s own Cliniko business counts. Figures update every hour for the running period, daily for earlier ones, or when you press Refresh.</li>
-              </ul>
-              <p className="kpi-conf">
-                From Cliniko: {src.invoices} invoices in the period, {src.counted} counted as sessions
-                {src.creditNotes ? `, ${src.creditNotes} credit notes` : ""}
-                {src.otherBusinesses.length ? `, ${src.otherBusinesses.map((b) => `${b.invoices} in ${b.name}`).join(", ")} left out` : ""}
-                {src.noTherapist ? `, ${src.noTherapist} with no therapist` : ""}
-                {src.hubReceipts ? `; plus ${src.hubReceipts} Hub receipt${src.hubReceipts === 1 ? "" : "s"} for online payments` : ""}.
-              </p>
+              <dl className="kpi-defs">
+                {MEASURES.map((x) => (
+                  <div key={x.key}>
+                    <dt>{x.label}</dt>
+                    <dd>
+                      {x.meaning}
+                      {x.range ? ` ${x.range}.` : ""}
+                    </dd>
+                  </div>
+                ))}
+                <div>
+                  <dt>Their usual</dt>
+                  <dd>The average of the three whole months before. Holidays and new starters make a month look different, so read the arrows as a prompt to ask, not a verdict.</dd>
+                </div>
+                <div>
+                  <dt>Where the ranges come from</dt>
+                  <dd>
+                    Published practice-management guidance for private physiotherapy clinics: utilisation of about 75–85% of available hours (
+                    <a href="https://www.scalesuite.com.au/resources/physiotherapy-clinic-finance">Scale Suite</a>), and missed-appointment rates that clinics try to keep under 10% (NHS physiotherapy averages
+                    about 1 in 10:{" "}
+                    <a href="https://aocp.csp.org.uk/system/files/documents/2020-12/george_pruddens_poster.pdf">CSP poster, 2020</a>). Rebooking, new patients and visits per patient depend on the case mix, so
+                    they&apos;re compared with the therapist&apos;s own past (
+                    <a href="https://www.physitrack.com/en-ie/insights/physical-therapy-practice-kpis-small-clinics">Physitrack</a>).
+                  </dd>
+                </div>
+              </dl>
             </section>
           </>
         )}
@@ -231,303 +206,45 @@ function Stats() {
   );
 }
 
-/** One therapist's period, laid out like their Statement of Earnings (stats only, no rent amounts). */
-function Statement({ r, d, isCurrent, onSaved, onError }: { r: TherapistRow; d: TherapistReport; isCurrent: boolean; onSaved: (msg: string) => Promise<void>; onError: (m: string) => void }) {
-  const s = r.stats;
-  const cap = r.capacity;
-  const days = DAY_KINDS.filter((k) => k !== "bankHoliday" || s.byDay.bankHoliday.sessions > 0);
+function Card({ r, d }: { r: ScoreRow; d: Scorecard }) {
   return (
     <section className="panel tstmt" id={`ts-${r.practitionerId}`} aria-labelledby={`ts-h-${r.practitionerId}`}>
       <header className="tstmt-head">
         <div>
           <h2 id={`ts-h-${r.practitionerId}`}>{r.name}</h2>
           <p className="secondary">
-            {fmtDay(d.fromDay)} – {fmtDay(d.toDay)}
-            {isCurrent ? " (so far)" : ""}
+            {monthLabel(d.month)}
+            {d.soFar ? " so far" : ""}: {r.month.bookedHours} of {r.month.availableHours} working hours booked
           </p>
         </div>
-        <span className="tstmt-badge">{MODEL_BADGE[r.rules.model]}</span>
       </header>
 
-      {cap && (
-        <div className="tstmt-block">
-          <h3 className="tstmt-label">Clinic capacity</h3>
-          <div className="tstmt-boxes">
-            <div className="tstmt-box">
-              <span>Number of patients</span>
-              <strong className="tnum">{s.sessions}</strong>
-            </div>
-            <div className="tstmt-box">
-              <span>Max capacity</span>
-              <strong className="tnum">{r.rules.maxPatients}</strong>
-            </div>
-            <div className="tstmt-box">
-              <span>Capacity percentage</span>
-              <strong className="tnum">{pct1(cap.pct)}</strong>
-            </div>
+      <div className="tstmt-boxes score-boxes">
+        {MEASURES.filter((x) => x.key !== "visits").map((x) => (
+          <div className="tstmt-box score-box" key={x.key}>
+            <span>{x.label}</span>
+            <strong className="tnum">
+              {x.show(r.month)}
+              <Arrow m={r.month} u={r.usual} x={x} />
+            </strong>
+            <small className="secondary">
+              {d.soFar && (x.key === "newPatients" || x.key === "visits") ? "Usual by now" : "Usually"} {x.show(r.usual)}
+              {x.range ? ` · ${x.range.replace("Common aim: ", "aim ")}` : ""}
+            </small>
           </div>
-          <div className="tstat-meter" role="img" aria-label={`${pct1(cap.pct)} of max capacity`}>
-            <span style={{ width: `${Math.min(100, cap.pct)}%` }} />
-          </div>
-          <p className="secondary">
-            {cap.toNextTier == null ? "In the top tier." : `${cap.toNextTier} more patient${cap.toNextTier === 1 ? "" : "s"} to reach ${r.tiers[cap.tierIndex + 1].min}% and the next tier.`}
-            {isCurrent && r.pace != null ? ` On pace for about ${r.pace}${r.paceCapacityPct != null ? ` (${pct1(r.paceCapacityPct)})` : ""} by ${fmtDay(d.toDay)}.` : ""}
-          </p>
-        </div>
-      )}
-      {!cap && r.rules.model !== "fixed" && <Notice title="No max capacity set"><p>Set their max patients under Change rules to see how full they were.</p></Notice>}
-
-      <div className="tstmt-block">
-        <h3 className="tstmt-label">Revenue breakdown</h3>
-        <div className="table-wrap kpi-table-wrap">
-          <table className="guide-table kpi-table tstmt-table">
-            <thead>
-              <tr>
-                <th scope="col">Category</th>
-                <th scope="col">Patients</th>
-                <th scope="col">Total billed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {days.map((k) => (
-                <tr key={k}>
-                  <th scope="row">{DAY_LABEL[k]}</th>
-                  <td className="tnum">{s.byDay[k].sessions}</td>
-                  <td className="tnum">{euros(s.byDay[k].billedMinor)}</td>
-                </tr>
-              ))}
-              <tr className="tstmt-total">
-                <th scope="row">Total</th>
-                <td className="tnum">{s.sessions}</td>
-                <td className="tnum">{euros(s.billedMinor)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        {s.zeroInvoices > 0 && <p className="secondary">Also {s.zeroInvoices} invoice{s.zeroInvoices === 1 ? "" : "s"} for €0, not counted.</p>}
+        ))}
       </div>
 
-      {r.rules.model !== "fixed" && (
-        <div className="tstmt-block">
-          <h3 className="tstmt-label">Tier table</h3>
-          <ol className="tstmt-tiers">
-            {r.tiers.map((t, i) => {
-              const here = cap?.tierIndex === i;
-              return (
-                <li key={i} className={here ? "is-here" : undefined} aria-current={here ? "true" : undefined}>
-                  <span className="tnum">
-                    {band(t, i === r.tiers.length - 1)}
-                    {here ? <span className="visually-hidden"> (this period)</span> : null}
-                  </span>
-                  <span className="tnum">{ratePct(t.pct)} rent</span>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="secondary tstmt-note">Saturday, Sunday and bank holiday rent use fixed rates and aren&apos;t affected by the tiers.</p>
-        </div>
-      )}
-
-      {r.vouchersUsed !== undefined && (
-        <div className="tstmt-block">
-          <h3 className="tstmt-label">Gift vouchers used</h3>
-          {r.vouchersUsed == null ? (
-            <p className="secondary">Couldn&apos;t read the gift vouchers just now. Press Refresh now to try again.</p>
-          ) : (
-            <>
-              <div className="tstmt-boxes is-two">
-                <div className="tstmt-box">
-                  <span>Treatments</span>
-                  <strong className="tnum">{r.vouchersUsed.count}</strong>
-                </div>
-                <div className="tstmt-box">
-                  <span>Amount</span>
-                  <strong className="tnum">{euros(r.vouchersUsed.amountMinor)}</strong>
-                </div>
-              </div>
-              <p className="secondary tstmt-note">Paid with gift vouchers, at the desk or online, counted by the day they were entered. The clinic holds voucher money, so Northbank owes the therapist this amount.</p>
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="tstmt-block">
-        <h3 className="tstmt-label">Machine sessions</h3>
-        <div className="tstmt-boxes is-two">
-          <div className="tstmt-box">
-            <span>Shockwave</span>
-            <strong className="tnum">{s.shockwave}</strong>
-          </div>
-          <div className="tstmt-box">
-            <span>Laser</span>
-            <strong className="tnum">{s.laser}</strong>
-          </div>
-        </div>
-      </div>
-
-      <details className="tstat-panel tstmt-rules">
-        <summary>Change {r.name.split(" ")[0]}&apos;s rules</summary>
-        <RulesForm r={r} onSaved={onSaved} onError={onError} />
-      </details>
-    </section>
-  );
-}
-
-type TierDraft = { min: string; max: string; pct: string };
-const toDraft = (t: Tier[]): TierDraft[] => t.map((x) => ({ min: String(x.min), max: String(x.max), pct: String(Math.round(x.pct * 1000) / 10) }));
-
-function RulesForm({ r, onSaved, onError }: { r: TherapistRow; onSaved: (msg: string) => Promise<void>; onError: (m: string) => void }) {
-  const [model, setModel] = useState<RentModel>(r.rules.model);
-  const [maxP, setMaxP] = useState(r.rules.maxPatients ? String(r.rules.maxPatients) : "");
-  const [own, setOwn] = useState(r.rules.tiers.length > 0);
-  const [tiers, setTiers] = useState<TierDraft[]>(toDraft(r.rules.tiers.length ? r.rules.tiers : DEFAULT_TIERS));
-  const [calc, setCalc] = useState({ hours: "", b30: "0", b45: "0", b60: "0", appt: "45" });
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState("");
-
-  const calcMax = maxPatientsFromHours({ monthlyHours: Number(calc.hours), breaks30: Number(calc.b30) || 0, breaks45: Number(calc.b45) || 0, breaks60: Number(calc.b60) || 0, appointmentMinutes: Number(calc.appt) });
-  const blank = (v: string) => v.trim() === "" || !Number.isFinite(Number(v));
-  const parsedTiers: Tier[] = tiers.map((t) => ({ min: Number(t.min), max: Number(t.max), pct: Number(t.pct) / 100 }));
-
-  const save = async () => {
-    setProblem("");
-    const max = maxP.trim() ? Math.round(Number(maxP)) : null;
-    if (model !== "fixed" && maxP.trim() && !(max! >= 1 && max! <= 5000)) return setProblem("Max patients should be a number from 1 to 5000.");
-    const useTiers = model !== "fixed" && own ? parsedTiers : [];
-    if (model !== "fixed" && own && tiers.some((t) => blank(t.min) || blank(t.max) || blank(t.pct))) return setProblem("Fill in every tier box with a number.");
-    const tp = tierProblem(useTiers);
-    if (tp) return setProblem(tp);
-    setBusy(true);
-    try {
-      await call("POST", { action: "rules", practitionerId: r.practitionerId, rules: { maxPatients: model === "fixed" ? null : max, model, tiers: useTiers } });
-      await onSaved(`Saved ${r.name}'s rules.`);
-    } catch (e: any) {
-      onError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const setTier = (i: number, k: keyof TierDraft, v: string) => setTiers(tiers.map((t, j) => (j === i ? { ...t, [k]: v } : t)));
-
-  return (
-    <fieldset className="panel-form tstat-rules">
-      <legend className="label">{r.name}&apos;s rules</legend>
-      {r.rules.updatedAt && (
-        <p className="field-hint">
-          Last changed {fmtWhen(r.rules.updatedAt)}
-          {r.rules.updatedBy ? ` by ${r.rules.updatedBy}` : ""}.
+      <div className="kpi-action">
+        <p>
+          <strong>For the check-in</strong>
         </p>
-      )}
-      <div className="field">
-        <label htmlFor={`m-${r.practitionerId}`}>How they pay rent</label>
-        <select id={`m-${r.practitionerId}`} value={model} onChange={(e) => setModel(e.target.value as RentModel)}>
-          {(Object.keys(MODEL_LABEL) as RentModel[]).map((m) => (
-            <option key={m} value={m}>
-              {MODEL_LABEL[m]}
-            </option>
+        <ul className="score-prompts">
+          {r.prompts.map((p) => (
+            <li key={p}>{p}</li>
           ))}
-        </select>
+        </ul>
       </div>
-
-      {model !== "fixed" && (
-        <>
-          <div className="field">
-            <label htmlFor={`x-${r.practitionerId}`}>Max patients a month</label>
-            <p className="field-hint">The most sessions they could fit in a month. Not sure? Work it out below.</p>
-            <input id={`x-${r.practitionerId}`} inputMode="numeric" value={maxP} onChange={(e) => setMaxP(e.target.value)} />
-          </div>
-
-          <details className="tstat-panel tstat-calc">
-            <summary>Work out max patients from their hours</summary>
-            <div className="field-row">
-              <div className="field">
-                <label htmlFor={`h-${r.practitionerId}`}>Hours a month</label>
-                <input id={`h-${r.practitionerId}`} inputMode="decimal" value={calc.hours} onChange={(e) => setCalc({ ...calc, hours: e.target.value })} />
-              </div>
-              <div className="field">
-                <label htmlFor={`a-${r.practitionerId}`}>Appointment length</label>
-                <select id={`a-${r.practitionerId}`} value={calc.appt} onChange={(e) => setCalc({ ...calc, appt: e.target.value })}>
-                  <option value="30">30 min</option>
-                  <option value="45">45 min</option>
-                  <option value="60">60 min</option>
-                </select>
-              </div>
-            </div>
-            <div className="field-row">
-              {(["b30", "b45", "b60"] as const).map((k) => (
-                <div className="field" key={k}>
-                  <label htmlFor={`${k}-${r.practitionerId}`}>{k.slice(1)}-min breaks</label>
-                  <input id={`${k}-${r.practitionerId}`} inputMode="numeric" value={calc[k]} onChange={(e) => setCalc({ ...calc, [k]: e.target.value })} />
-                </div>
-              ))}
-            </div>
-            <p className="secondary">
-              {calcMax != null ? `That's ${calcMax} patients a month.` : "Enter their hours to work it out."}{" "}
-              {calcMax != null && (
-                <button type="button" className="kpi-link" onClick={() => setMaxP(String(calcMax))}>
-                  Use {calcMax}
-                </button>
-              )}
-            </p>
-          </details>
-
-          <fieldset className="field">
-            <legend className="label">Tiers</legend>
-            <label className="checkbox">
-              <input type="radio" name={`own-${r.practitionerId}`} checked={!own} onChange={() => setOwn(false)} />
-              <span>The clinic&apos;s usual tiers</span>
-            </label>
-            <label className="checkbox">
-              <input type="radio" name={`own-${r.practitionerId}`} checked={own} onChange={() => setOwn(true)} />
-              <span>Their own tiers</span>
-            </label>
-          </fieldset>
-
-          {own && (
-            <div className="tstat-tiers">
-              {tiers.map((t, i) => (
-                <div className="field-row" key={i}>
-                  <div className="field">
-                    <label htmlFor={`tmin-${r.practitionerId}-${i}`}>Tier {i + 1} from (%)</label>
-                    <input id={`tmin-${r.practitionerId}-${i}`} inputMode="decimal" value={t.min} onChange={(e) => setTier(i, "min", e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`tmax-${r.practitionerId}-${i}`}>to (%)</label>
-                    <input id={`tmax-${r.practitionerId}-${i}`} inputMode="decimal" value={t.max} onChange={(e) => setTier(i, "max", e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label htmlFor={`tpct-${r.practitionerId}-${i}`}>Rent rate (%)</label>
-                    <input id={`tpct-${r.practitionerId}-${i}`} inputMode="decimal" value={t.pct} onChange={(e) => setTier(i, "pct", e.target.value)} />
-                  </div>
-                  <button type="button" className="btn btn-secondary tstat-remove" aria-label={`Remove tier ${i + 1}`} onClick={() => setTiers(tiers.filter((_, j) => j !== i))} disabled={tiers.length <= 1}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <div className="actions">
-                <button type="button" className="btn btn-secondary" disabled={tiers.length >= 10} onClick={() => { const last = tiers[tiers.length - 1]; setTiers([...tiers, { min: last?.max ?? "0", max: "100", pct: last?.pct ?? "40" }]); }}>
-                  Add a tier
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setTiers(toDraft(DEFAULT_TIERS))}>
-                  Start from the usual tiers
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {problem && (
-        <Notice tone="error">
-          <p>{problem}</p>
-        </Notice>
-      )}
-      <div className="actions">
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={save}>
-          {busy ? "Saving…" : "Save rules"}
-        </button>
-      </div>
-    </fieldset>
+    </section>
   );
 }

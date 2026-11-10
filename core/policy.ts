@@ -42,7 +42,7 @@ export const POLICY_SENTENCE =
 /**
  * Extra treatments (clinic, 8 Oct 2026): shockwave, laser and similar are
  * charged on top of the appointment fee, only with the patient's agreement.
- * PLACEHOLDER wording: Clare is writing the clinic's own sentence for
+ * PLACEHOLDER wording: the clinic is writing the clinic's own sentence for
  * Cliniko's reminders; replace this with it, word for word, so the Hub's
  * screens and emails match Cliniko's. Change it here only.
  */
@@ -117,7 +117,7 @@ export function addDays(day: string, n: number) {
 /**
  * How far ahead patients can book or move appointments online. Matches
  * Cliniko > Settings > Online bookings > "Offer bookings up to 12 weeks
- * ahead" (checked by Joan & Cian, 4 Nov 2026). Cliniko's setting is what
+ * ahead" (checked 4 Nov 2026). Cliniko's setting is what
  * really decides which times exist: change both together.
  */
 export const ONLINE_BOOKING_WEEKS_AHEAD = 12;

@@ -9,13 +9,13 @@ import { findGuide, guidesFor, resolveShots } from "@/core/guides/catalog";
 import { AUDIENCE_LABEL } from "@/core/guides/types";
 import { guideAudiences } from "@/core/roles";
 import { addDays, dublinDay } from "@/core/policy";
-import { DEFAULT_TIERS, capacityFor, monthByTherapist, paceFor, periodMonthFor, periodRange, type InvoiceIn, type TherapistRules } from "@/core/therapist-stats";
 import { mondayOf } from "@/core/tasks";
 import { describeRule, daysFor, type ShiftRuleInput } from "@/core/shifts";
 import { BUSINESS, PRACTITIONERS, practitionerName, typeById } from "../clinic";
 import { type Db, netPaidMinor, patientName } from "../db";
 import { liveAppointments } from "../diary";
 import { kpiAppointments } from "../kpis";
+import { scorecard } from "../scorecard";
 import { fail, ok, route } from "../router";
 
 const plain = (n?: string) => (n ?? "").replace(/^\d+\.\s*/, "");
@@ -99,7 +99,7 @@ route("GET", "/api/admin/vouchers", (_db, now, req) => {
     today, canManage: false, practitioners: PRACTITIONERS.map((p) => ({ id: p.id, name: practitionerName(p.id) })),
     recent: list.map((v) => ({ id: v.id, code: v.code, status: v.status, source: v.source, amountMinor: v.amountMinor, balanceMinor: v.balanceMinor, createdAt: v.events[0].at, forName: v.recipientName ?? v.buyerName, emailed: true, emailError: null })),
     outstanding: { liveCount: list.length, liveMinor: list.reduce((s, v) => s + v.balanceMinor, 0), expiredCount: 0, expiredMinor: 0 },
-    period: { month: periodMonthFor(today), ...periodRange(periodMonthFor(today)), therapists: [{ practitionerId: "103", name: "Lucy Chen", amountMinor: 7000, count: 1 }] },
+    period: { month: today.slice(0, 7), fromDay: `${today.slice(0, 7)}-01`, toDay: today, therapists: [{ practitionerId: "103", name: "Lucy Chen", amountMinor: 7000, count: 1 }] },
   });
 });
 
@@ -133,42 +133,14 @@ route("GET", "/api/staff/tasks", (_db, now) => {
   });
 });
 
-// ---- Therapist stats: worked out by the real code from the demo's appointments
-
-const RULES: Record<string, TherapistRules> = {
-  "101": { maxPatients: 150, model: "capacity", tiers: [] },
-  "102": { maxPatients: 120, model: "capacity", tiers: [] },
-  "103": { maxPatients: 110, model: "hybrid", tiers: [] },
-  "104": { maxPatients: 140, model: "capacity", tiers: [] },
-  "105": { maxPatients: null, model: "fixed", tiers: [] },
-};
+// ---- Practitioner scorecard: each therapist's month, worked out from the demo's appointments
 
 route("GET", "/api/admin/therapist-stats", (db, now, req) => {
-  const today = todayOf(now);
-  const month = req.url.searchParams.get("month") ?? periodMonthFor(today);
-  const { fromDay, toDay } = periodRange(month);
-  const nowIso = new Date(now).toISOString();
-  const invoices: InvoiceIn[] = kpiAppointments(db, now)
-    .filter((a) => !a.cancelledAt && !a.didNotArrive && a.startsAt < nowIso)
-    .map((a) => ({ id: a.id, practitionerId: a.practitionerId, businessId: BUSINESS.id, issueDay: dublinDay(a.startsAt), totalMinor: a.priceMinor ?? 0, status: 20, originalInvoiceId: null, deleted: false, itemNames: [a.typeName] }));
-  const byTherapist = monthByTherapist(invoices, { fromDay, toDay, businessId: BUSINESS.id });
-  const rows = PRACTITIONERS.map((p) => {
-    const stats = byTherapist.get(p.id) ?? { practitionerId: p.id, sessions: 0, zeroInvoices: 0, billedMinor: 0, byDay: { weekday: { sessions: 0, billedMinor: 0 }, saturday: { sessions: 0, billedMinor: 0 }, sunday: { sessions: 0, billedMinor: 0 }, bankHoliday: { sessions: 0, billedMinor: 0 } }, shockwave: 0, laser: 0 };
-    const rules = RULES[p.id];
-    const pace = paceFor(stats.sessions, { fromDay, toDay, today });
-    return {
-      practitionerId: p.id, name: practitionerName(p.id), rules, tiers: DEFAULT_TIERS, stats, capacity: capacityFor(stats.sessions, rules),
-      pace, paceCapacityPct: pace != null && rules.maxPatients ? Math.round((pace / rules.maxPatients) * 1000) / 10 : null, vouchersUsed: { amountMinor: p.id === "103" ? 7000 : 0, count: p.id === "103" ? 1 : 0 },
-    };
-  });
-  const counted = rows.reduce((s, r) => s + r.stats.sessions, 0);
-  return ok({
-    data: {
-      month, fromDay, toDay, computedAt: new Date(now).toISOString(), today, rows,
-      notes: ["Demo: worked out from the demo diary (the months before the last fortnight are made-up history)."],
-      source: { invoices: counted, counted, otherBusinesses: [], noTherapist: 0, creditNotes: 0, hubReceipts: db.invoices.length },
-    },
-  });
+  const month = req.url.searchParams.get("month") ?? todayOf(now).slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return fail(400, { error: "Pick a month." });
+  const hours = Object.fromEntries(PRACTITIONERS.map((p) => [p.id, p.hours]));
+  const names = Object.fromEntries(PRACTITIONERS.map((p) => [p.id, practitionerName(p.id)]));
+  return ok({ data: scorecard({ appts: kpiAppointments(db, now), hours, names, month, nowMs: now }) });
 });
 
 // ---- Regular shifts (sample)

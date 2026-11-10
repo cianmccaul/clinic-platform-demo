@@ -35,7 +35,7 @@ Open http://localhost:3000. The dark bar at the top has an **Inbox** (every emai
 
 **One cancellation policy.** The 24-hour rule and its wording live in one module, used by booking, "Manage my booking", reception and every email.
 
-**Therapists paid directly.** Each payment is a direct charge on the therapist's own Stripe account, because they're self-employed and the money is theirs. The one therapist employed by the clinic is paid on the clinic's account.
+**Therapists paid directly.** Each payment is a direct charge on the therapist's own Stripe account, because they're self-employed and the money is theirs. Staff the clinic pays itself are charged on the clinic's own account.
 
 **One machine, one booking.** There's one shockwave machine and one laser, so the Hub never offers a time when the machine is in use, and a dashboard page catches clashes made straight in the diary.
 

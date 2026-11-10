@@ -10,7 +10,7 @@ import { whenShort } from "@/core/format";
 import type { AppointmentType, Practitioner } from "@/components/booking/types";
 
 /**
- * "Add a patient" on Dashboard → Waitlist (Clare, 6 Nov 2026: reception had no
+ * "Add a patient" on Dashboard → Waitlist (6 Nov 2026: reception had no
  * way to put a caller on the waitlist). Find them in Cliniko or type their
  * details, choose what they're waiting for, confirm they agreed to be
  * contacted. Same rules as the patient's own form (lib/waitlist-join.ts): only
