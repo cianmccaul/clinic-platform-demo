@@ -1,0 +1,156 @@
+/*
+ * Northbank Hub design tokens: the ONLY place colours, type, spacing, radius,
+ * elevation and motion are defined. Components in globals.css use these
+ * variables and nothing else. See docs/design.md for the rules behind them.
+ *
+ * Contrast ratios are against white #FFFFFF and the canvas #F4F5F9 (WCAG 2.2 AA: 4.5:1 text, 3:1
+ * non-text). Re-run the check in docs/design.md before changing a colour.
+ */
+
+/* Inter (Rasmus Andersson, SIL OFL 1.1), self-hosted: the closest free
+   match to Stripe's Söhne, with plain (unslashed) zeros. Only 400 / 600 /
+   700: nothing on the Hub is lighter than 400. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/inter-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/inter-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/inter-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/inter-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/inter-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/inter-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  color-scheme: light;
+
+  /* ---- Colour: one meaning per colour ---- */
+  --color-primary: #314083; /* 9.6:1  buttons, links, selected slot, focus ring: "you can press this" */
+  --color-primary-hover: #263366; /* 12.0:1 hover and pressed */
+  --color-primary-tint: #eef0f8; /* background: selected rows, info panels */
+  --color-brand-red: #d72a2e; /* 4.9:1  the logo ONLY: never a control, never a status */
+  --color-ink: #1b2140; /* 15.7:1 headings */
+  --color-text: #4a5068; /* 8.0:1 on white, 7.3:1 on canvas  body text (slate, tuned to the navy) */
+  --color-text-muted: #5f6580; /* 5.7:1 on white, 5.3:1 on canvas  footer and fine print */
+  --color-border: #7d8399; /* 3.8:1 on white, 3.5:1 on canvas  inputs, slots, radios (3:1 non-text) */
+  --color-divider: #d9dce8; /* decorative hairlines only, never an input border */
+  --color-hairline: rgba(27, 33, 64, 0.08); /* card edges: decorative, the shadow does the lifting */
+  --color-canvas: #f4f5f9; /* page background: soft cool grey, so white cards lift off it */
+  --color-surface: #ffffff; /* cards, inputs, header, footer */
+  --color-surface-alt: #f6f7fb; /* quiet fills inside white cards (badges, disabled, skeletons) */
+  --color-error: #b42318; /* 6.6:1  error text, destructive confirmations: always with an icon and words */
+  --color-error-tint: #fdf0ef; /* error panel background (error text on it 5.9:1) */
+  --color-success: #1e6b45; /* 6.5:1  confirmation banner, "Paid" */
+  --color-success-tint: #eaf3ee; /* success panel background (success text on it 5.7:1) */
+  --color-warning: #8a5300; /* 6.3:1 on white, 5.8:1 on its tint: "inside 24 hours, a fee applies" */
+  --color-warning-tint: #fff4e0;
+  --color-highlight: #e8590c; /* 3.6:1 on white. ONLY the rings drawn over screenshots in guides, always with a white halo */
+
+  /* ---- Type: one family ---- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --text-h1: 1.875rem; /* 30px mobile; 36px from 768px (below) */
+  --text-h2: 1.625rem; /* 26px */
+  --text-h3: 1.375rem; /* 22px */
+  --text-body: 1.125rem; /* 18px */
+  --text-secondary: 1rem; /* 16px */
+  --text-meta: 0.875rem; /* 14px, never for policy text */
+  --leading-body: 1.5;
+  --leading-heading: 1.2;
+  --measure: 65ch;
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-heading: -0.02em;
+
+  /* ---- Spacing: these eight values and no others ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Shape ---- */
+  --radius-control: 8px; /* buttons, inputs, slots, selectable rows */
+  --radius-panel: 16px; /* cards and panels: options, booking summary, notices */
+  --radius-pill: 999px; /* primary and secondary buttons */
+  --target: 48px; /* minimum height for slots and buttons */
+  --border-width: 1px;
+
+  /* ---- Elevation: navy-tinted. Cards rest low; hover lifts a little; floating bars sit highest ---- */
+  --shadow-card: 0 1px 2px rgba(27, 33, 64, 0.04), 0 4px 14px rgba(27, 33, 64, 0.05);
+  --shadow-card-hover: 0 2px 4px rgba(27, 33, 64, 0.06), 0 10px 24px rgba(27, 33, 64, 0.08);
+  --shadow-float: 0 1px 2px rgba(49, 64, 131, 0.08), 0 6px 16px rgba(49, 64, 131, 0.12);
+
+  /* ---- Focus: 2px primary with a 2px white offset, everywhere ---- */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /* ---- Motion: slot selection and panel expand only ---- */
+  --motion-fast: 150ms;
+  --motion: 200ms;
+  --ease: ease-out;
+
+  /* ---- Layout ---- */
+  --page-max: 1080px;
+  --pane-aside: 340px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --text-h1: 2.25rem; /* 36px */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion: 0ms;
+  }
+}
