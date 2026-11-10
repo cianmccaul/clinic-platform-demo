@@ -4,9 +4,9 @@ Online booking, payments and a reception dashboard for a physiotherapy clinic.
 
 This is a public, working copy of a platform I built for a multi-therapist clinic in Dublin. The real system has been live since October 2026, taking bookings and payments every day. Here it runs as a **fictional clinic, Northbank Physio**, with made-up patients. It's the production interface, unchanged, with a pretend back end that runs in your browser, so there are no accounts or keys and nothing is ever charged or sent.
 
-**[How the production system works →](docs/architecture.md)**
+**[Try the live demo →](https://cian-clinic-demo.vercel.app)** · **[How the production system works →](docs/architecture.md)**
 
-## Try it
+## Run it yourself
 
 ```
 npm install
