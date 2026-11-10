@@ -110,3 +110,45 @@
 .demo-bar strong {
   color: #fff;
 }
+
+/* The real header's skip link sits 100px above the header. Below the taller demo bar on phones that lands
+   on screen, so keep it out of sight until it's focused. */
+.skip-link:not(:focus) {
+  top: auto;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Phones: one short row, links scroll sideways. */
+@media (max-width: 640px) {
+  .demo-bar-inner {
+    flex-wrap: nowrap;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-4);
+  }
+  .demo-bar-long {
+    display: none;
+  }
+  .demo-bar-text {
+    flex: none;
+  }
+  .demo-bar-text strong {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+  }
+  .demo-bar-links {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .demo-bar-links::-webkit-scrollbar {
+    display: none;
+  }
+}

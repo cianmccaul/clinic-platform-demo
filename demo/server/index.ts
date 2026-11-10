@@ -85,6 +85,6 @@ export function handle(method: string, url: URL, body: unknown) {
     return res;
   } catch (err) {
     console.error("[demo server]", url.pathname, err);
-    return { status: 500, json: { error: "Something went wrong in the demo. Try Reset demo." } };
+    return { status: 500, json: { error: "Something went wrong in the demo. Try Reset in the demo bar." } };
   }
 }

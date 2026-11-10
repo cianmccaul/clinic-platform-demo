@@ -100,7 +100,7 @@ Next.js and TypeScript on Vercel (Dublin region) · Stripe and Stripe Connect ·
 | Cliniko API | `demo/server/diary.ts`: availability, holds and appointments with the same rules |
 | Stripe and Connect | `demo/server/stripe.ts` and a pretend checkout page, with per-therapist accounts |
 | Redis and Postgres | The browser's local storage, so each visitor gets their own clinic |
-| Resend and Twilio | The Demo inbox. No texts in the demo, so offers and links go by email |
+| Resend and Twilio | The Inbox in the demo bar. No texts in the demo, so offers and links go by email |
 | Passkey staff sign-in | Skipped: you're signed in as an owner |
 | Bookings, appointments, phone bookings, saved cards, pay links, past-visit payments, waitlist, invoices, KPIs | Working |
 | Vouchers, tasks, therapist stats, shifts, emails, team, timesheets, machine clashes | View-only, with sample data |

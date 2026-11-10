@@ -13,17 +13,17 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The dark bar at the top has the **Demo inbox** (every email the system "sends") and **Reset demo**.
+Open http://localhost:3000. The dark bar at the top has an **Inbox** (every email the system "sends") and **Reset**.
 
 ### Things to try
 
 1. **Book an appointment.** Pick a treatment, therapist and time, fill in your details and pay on the pretend checkout page.
-2. **Break it on purpose.** On the checkout page, choose *"Someone takes the time while I pay"*: you keep your payment and get a link (in the Demo inbox) to pick another time, or ask for a refund. Choose *"The clinic diary is down"*: you're refunded in full automatically.
-3. **Manage a booking** as `jack.murphy@example.com`. The sign-in code arrives in the Demo inbox. Jack has one booking more than 24 hours away (free to cancel or move) and one inside 24 hours (the fee applies).
+2. **Break it on purpose.** On the checkout page, choose *"Someone takes the time while I pay"*: you keep your payment and get a link (in the Inbox) to pick another time, or ask for a refund. Choose *"The clinic diary is down"*: you're refunded in full automatically.
+3. **Manage a booking** as `jack.murphy@example.com`. The sign-in code arrives in the Inbox. Jack has one booking more than 24 hours away (free to cancel or move) and one inside 24 hours (the fee applies).
 4. **Run reception** from the **Dashboard**. You're signed in as an owner, so every area shows.
    - **Online bookings**: refunds, extras, no-show and late-cancel fees, pausing online booking, the daily checks and the activity log.
    - **Appointments**: find a patient, move or cancel their appointments, and sort out patients who paid for a time that was taken.
-   - **Book a patient by phone**: the patient's steps, then a payment link (open it from the Demo inbox and pay it) or their saved card.
+   - **Book a patient by phone**: the patient's steps, then a payment link (open it from the Inbox and pay it) or their saved card.
    - **Payment for a past appointment**, **Waitlist** (offer a time by hand, or "Look for times now"), **Invoices** and **Clinic KPIs**.
 5. **Look around the rest.** Machine clashes, gift vouchers, tasks, therapist stats, shifts, emails, team, timesheets and the guides are view-only, with sample data.
 
@@ -56,7 +56,7 @@ core/                    the production business logic: pure, no I/O
 lib/                     type-only stand-ins for the server modules
 demo/
   install.ts             answers the pages' /api calls in the browser
-  DemoBar.tsx            the demo bar, Demo inbox and reset
+  DemoBar.tsx            the demo bar, its Inbox and Reset
   server/
     flows.ts             pay-then-book, the webhook, rebook, refunds, cancelling
     diary.ts             stands in for Cliniko: availability, holds, appointments

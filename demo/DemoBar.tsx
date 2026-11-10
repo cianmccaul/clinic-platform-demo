@@ -24,16 +24,17 @@ export function DemoBar() {
       <div className="demo-bar" role="region" aria-label="Demo controls">
         <div className="demo-bar-inner">
           <p className="demo-bar-text">
-            <strong>Demo</strong> with a fictional clinic and made-up patients. Nothing is real or sent.
+            <strong>Demo</strong>
+            <span className="demo-bar-long"> with a fictional clinic and made-up patients. Nothing is real or sent.</span>
           </p>
           <nav className="demo-bar-links" aria-label="Demo areas">
+            <button type="button" className="demo-bar-button" onClick={() => setOpen(true)}>
+              Inbox{count > 0 ? ` (${count})` : ""}
+            </button>
             <a href="/">Book</a>
-            <a href="/manage">Manage a booking</a>
+            <a href="/manage">Manage booking</a>
             <a href="/dashboard">Dashboard</a>
             <a href="/help">Help</a>
-            <button type="button" className="demo-bar-button" onClick={() => setOpen(true)}>
-              Demo inbox{count > 0 ? ` (${count})` : ""}
-            </button>
             <button
               type="button"
               className="demo-bar-button"
@@ -42,7 +43,7 @@ export function DemoBar() {
                 window.location.href = "/";
               }}
             >
-              Reset demo
+              Reset
             </button>
           </nav>
         </div>
