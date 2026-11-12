@@ -2,11 +2,15 @@
 
 Online booking, payments and a reception dashboard for a physiotherapy clinic.
 
+**[Live demo](https://cian-clinic-demo.vercel.app)** · **[Portfolio](https://cianmccaul.vercel.app)**
+
+![The demo's booking page for the fictional Northbank Physio, with the demo bar's Inbox, Dashboard and Reset links](docs/screenshot.png)
+
 This is a public, working copy of a platform I built for a multi-therapist clinic in Dublin. The real system has been live since October 2026, taking bookings and payments every day. Here it runs as a **fictional clinic, Northbank Physio**, with made-up patients. It's the production interface, unchanged, with a pretend back end that runs in your browser, so there are no accounts or keys and nothing is ever charged or sent.
 
-**[Try the live demo →](https://cian-clinic-demo.vercel.app)** · **[How the production system works →](docs/architecture.md)**
+**[How the production system works →](docs/architecture.md)**
 
-## Run it yourself
+## Run it locally
 
 ```
 npm install
@@ -27,7 +31,7 @@ Open http://localhost:3000. The dark bar at the top has an **Inbox** (every emai
    - **Payment for a past appointment**, **Waitlist** (offer a time by hand, or "Look for times now"), **Invoices** and **Clinic KPIs**.
 5. **Look around the rest.** Machine clashes, gift vouchers, tasks, therapist stats, shifts, emails, team, timesheets and the guides are view-only, with sample data.
 
-## What it shows
+## What it does
 
 **Pay, then book, without ever losing a payment.** The time is re-checked and held while the patient pays, then re-checked again when the payment lands. If it's gone, the payment is kept and the patient picks another time with the same therapist (refunded automatically after 7 days if they don't). If the diary can't be reached, they're refunded in full. Nobody is left paid but not booked.
 
@@ -41,7 +45,7 @@ Open http://localhost:3000. The dark bar at the top has an **Inbox** (every emai
 
 **Money in cents, time in Irish time.** Amounts are whole cents end to end. Every date is an Irish calendar day, including when the clocks change.
 
-## How the demo works
+## How it works
 
 The pages and components in `app/`, `components/` and `core/` are the production code, with the clinic's name, staff and details swapped for fictional ones. They call `/api/...` exactly as they do in production. In the demo, `demo/install.ts` answers those calls in the browser instead, from `demo/server/`, which follows the production route handlers and keeps everything in local storage. Each visitor gets their own clinic, rebuilt every day.
 
@@ -76,7 +80,7 @@ docs/architecture.md     how the real system is designed
 npm test
 ```
 
-`tests/demo-server.test.ts` runs the flows through the API: a paid booking, a repeated webhook, a time taken mid-payment (payment kept, rebooked, or refunded after 7 days), the diary down, the 24-hour rule both ways, refund limits, phone pay links, waitlist offers and the machine rule. `tests/core/` holds the production unit tests for the shared logic (policy, waitlist, KPIs, invoices, roles and more), unchanged apart from the clinic's details.
+142 tests in 21 files (Vitest), all passing. `tests/demo-server.test.ts` runs the flows through the API: a paid booking, a repeated webhook, a time taken mid-payment (payment kept, rebooked, or refunded after 7 days), the diary down, the 24-hour rule both ways, refund limits, phone pay links, waitlist offers and the machine rule. `tests/core/` holds the production unit tests for the shared logic (policy, waitlist, KPIs, invoices, roles and more), unchanged apart from the clinic's details.
 
 ## Built with
 
