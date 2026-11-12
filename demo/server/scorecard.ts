@@ -40,7 +40,19 @@ export const RANGES = {
 };
 
 const HOUR = 3_600_000;
-const day = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin" }).format(new Date(iso));
+// One formatter, and each timestamp's Irish day worked out once: building an
+// Intl.DateTimeFormat per call made a month's scorecard take seconds.
+const DUBLIN_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin" });
+const dayCache = new Map<string, string>();
+const day = (iso: string) => {
+  let d = dayCache.get(iso);
+  if (d === undefined) {
+    d = DUBLIN_DAY.format(new Date(iso));
+    if (dayCache.size > 50_000) dayCache.clear();
+    dayCache.set(iso, d);
+  }
+  return d;
+};
 const weekday = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay();
 const minutesOf = (hm: string) => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
 const ratio = (n: number, d: number) => (d > 0 ? n / d : null);
@@ -66,7 +78,12 @@ function measures(appts: Appt[], hours: Partial<Record<number, [string, string]>
   const bookedMin = held.reduce((s, a) => s + (Date.parse(a.endsAt) - Date.parse(a.startsAt)) / 60_000, 0);
   // Left with the next visit booked: another appointment with them, made by 48 hours after this one ended.
   const byPatient = new Map<string, Appt[]>();
-  for (const a of appts) if (!a.cancelledAt) byPatient.set(a.patientId, [...(byPatient.get(a.patientId) ?? []), a]);
+  for (const a of appts) {
+    if (a.cancelledAt) continue;
+    const list = byPatient.get(a.patientId);
+    if (list) list.push(a);
+    else byPatient.set(a.patientId, [a]);
+  }
   const rebooked = attended.filter((a) =>
     (byPatient.get(a.patientId) ?? []).some((b) => b.startsAt > a.startsAt && Date.parse(b.createdAt) <= Date.parse(a.endsAt) + 48 * HOUR),
   ).length;

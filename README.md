@@ -80,7 +80,7 @@ docs/architecture.md     how the real system is designed
 npm test
 ```
 
-142 tests in 21 files (Vitest). `tests/demo-server.test.ts` runs the flows through the API: a paid booking, a repeated webhook, a time taken mid-payment (payment kept, rebooked, or refunded after 7 days), the diary down, the 24-hour rule both ways, refund limits, phone pay links, waitlist offers and the machine rule. `tests/core/` holds the production unit tests for the shared logic (policy, waitlist, KPIs, invoices, roles and more), unchanged apart from the clinic's details.
+142 tests in 21 files (Vitest), all passing. `tests/demo-server.test.ts` runs the flows through the API: a paid booking, a repeated webhook, a time taken mid-payment (payment kept, rebooked, or refunded after 7 days), the diary down, the 24-hour rule both ways, refund limits, phone pay links, waitlist offers and the machine rule. `tests/core/` holds the production unit tests for the shared logic (policy, waitlist, KPIs, invoices, roles and more), unchanged apart from the clinic's details.
 
 ## Built with
 
