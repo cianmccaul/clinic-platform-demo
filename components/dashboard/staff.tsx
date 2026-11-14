@@ -500,7 +500,7 @@ export function StrongSignInNotice({ me, onDone, computerError }: { me: Extract<
   return (
     <Notice tone="warning" title="This computer is waiting for approval">
       <p>
-        You signed in with your emailed code, and this is the first time on this computer. Until it&apos;s approved you can read the guides. To approve
+        You signed in with your emailed code, and this is the first time on this computer. Until it&apos;s approved you can use the help centre. To approve
         it, open the dashboard on a phone or computer you&apos;ve already used, and press <strong>Approve</strong> there. Or ask an owner to approve it
         on the Team page. We&apos;ve emailed you and the clinic about it.
       </p>

@@ -521,7 +521,7 @@ export const EMAIL_TEMPLATES = {
     subject: "A new computer or phone is waiting to join your Northbank sign-in",
     body:
       "{device} has just signed in to the Northbank dashboard with an emailed code.\n\n" +
-      "It only opens the guides until it's approved: open the dashboard on a phone or computer you've already set up, and press Approve. Or ask a clinic owner to approve it on the Team page.\n\n" +
+      "It only opens the help centre until it's approved: open the dashboard on a phone or computer you've already set up, and press Approve. Or ask a clinic owner to approve it on the Team page.\n\n" +
       'If this wasn\'t you, press "It wasn\'t me" there instead, and tell a clinic owner.',
     button: "Open the dashboard",
     vars: [{ name: "device", label: "The computer", sample: "Mac (Chrome)" }],

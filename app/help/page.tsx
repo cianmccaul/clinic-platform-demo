@@ -11,7 +11,7 @@ export default function HelpHome() {
       <SiteHeader />
       <main id="main" className="page page-narrow">
         <div className="page-intro">
-          <h1>Help</h1>
+          <h1>Help centre</h1>
           <p className="lede">Step-by-step guides to booking, paying and managing your appointment, with pictures.</p>
         </div>
         <div className="stack-5">
@@ -23,7 +23,7 @@ export default function HelpHome() {
             </p>
           </Notice>
           <p className="secondary">
-            Northbank staff: <a href={`${dashboardUrl(process.env)}/help`}>sign in to see staff guides</a>.
+            Northbank staff: <a href={`${dashboardUrl(process.env)}/help`}>sign in to the staff help centre</a>.
           </p>
         </div>
       </main>

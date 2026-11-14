@@ -33,12 +33,12 @@ export default function DashboardHome() {
         <FaceIdTip me={me} />
 
         <ul className="option-list">
-          <Tile href="/dashboard/help/start-here" title="Start here: how Northbank works" desc="Which system to use for what, and the welcome videos" />
+          <Tile href="/dashboard/help/start-here" title="Start here: how Northbank works" desc="Which system to use for what, with pictures of each screen" />
           {has("bookings:manage") && <Tile href="/dashboard/appointments" title="Appointments" desc="Find any patient, then move or cancel their appointments, however they were booked" />}
           {has("bookings:view") && <Tile href="/dashboard/bookings" title="Online bookings" desc="Who has paid, refunds, waived fees, extras and no-shows" />}
           {has("bookings:view") && <Tile href="/dashboard/waitlist" title="Waitlist" desc="Patients waiting for a time, offers sent, and offering a time by hand" />}
           {has("bookings:view") && <MachineClashesTile />}
-          {has("vouchers:use") && <Tile href="/dashboard/vouchers" title="Gift vouchers" desc="Look up an existing voucher and use it for a treatment, or send it again" />}
+          {has("vouchers:use") && <Tile href="/dashboard/vouchers" title="Gift vouchers" desc="Look up a voucher, use it for a treatment, send it again, and see what's outstanding" />}
           {has("bookings:view") && <Tile href="/dashboard/invoices" title="Invoices" desc="Invoices and credit notes the Hub emails to patients, and resending them" />}
           {has("bookings:view") && <Tile href="/dashboard/uninvoiced" title="Not invoiced yet" desc="Paid bookings that still need an invoice in Cliniko" />}
           {has("phone-booking") ? (
@@ -66,7 +66,7 @@ export default function DashboardHome() {
               desc={has("timesheets:all") ? "Clock in and out, hours worked, and everyone's timesheets for payroll" : "Clock in and out, and your hours worked"}
             />
           )}
-          <Tile href="/dashboard/help" title="Guides" desc="Step-by-step help for the dashboard and Cliniko" />
+          <Tile href="/dashboard/help" title="Help centre" desc="Step-by-step guides to the dashboard, with numbered pictures" />
           <Tile href="/dashboard/account" title="Your sign-in" desc="Your phones and computers, and optional Face ID or fingerprint" />
         </ul>
 

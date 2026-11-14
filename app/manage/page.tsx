@@ -32,6 +32,20 @@ type Booking = {
   canReschedule: boolean;
 };
 
+/** One line of "Past payments": a card payment, a gift voucher's part, and anything refunded from it. */
+type PastPayment = {
+  id: string;
+  paidAtISO: string;
+  what: string;
+  treatment: string;
+  practitionerName: string;
+  appointmentAtISO: string;
+  cancelled: boolean;
+  method: string;
+  amountMinor: number;
+  refundedMinor: number;
+};
+
 async function post(url: string, body: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
@@ -69,6 +83,7 @@ export default function ManagePage() {
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [payments, setPayments] = useState<PastPayment[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -98,6 +113,7 @@ export default function ManagePage() {
     setStage("email");
     setToken(null);
     setBookings([]);
+    setPayments([]);
     setError("For your security, you've been signed out. Ask for a new code to carry on.");
   }
 
@@ -123,6 +139,7 @@ export default function ManagePage() {
     if (status === 401) return sessionExpired();
     if (!ok) return setError(`We couldn't load your bookings. Please try again, or call us on ${CLINIC_PHONE}.`);
     setBookings(data.bookings ?? []);
+    setPayments(data.payments ?? []);
   }
 
   async function verify() {
@@ -534,6 +551,44 @@ export default function ManagePage() {
               </section>
             );
           })}
+
+        {stage === "list" && (
+          <section className="booking-block" aria-labelledby="past-payments">
+            <h2 id="past-payments">Past payments</h2>
+            {payments.length === 0 ? (
+              <p className="secondary">No payments yet. Anything you pay online, or on the day for an extra treatment, is listed here.</p>
+            ) : (
+              <>
+                <p className="secondary">Everything you&apos;ve paid us, newest first. Refunds can take 5 to 10 working days to reach your card.</p>
+                <ul className="payment-list">
+                  {payments.map((p) => (
+                    <li key={p.id} className="payment-row">
+                      <div className="payment-main">
+                        <p className="payment-what">
+                          {p.what} <span className="secondary">· {p.treatment}</span>
+                        </p>
+                        <p className="secondary">
+                          {p.practitionerName ? `${p.practitionerName}, ` : ""}
+                          appointment {dayShort(p.appointmentAtISO)}
+                          {p.cancelled ? " (cancelled)" : ""}
+                        </p>
+                        <p className="secondary">
+                          Paid {dayShort(p.paidAtISO)} · {p.method}
+                        </p>
+                      </div>
+                      <div className="payment-amount">
+                        <p className="tnum">{euro(p.amountMinor)}</p>
+                        {p.refundedMinor > 0 && (
+                          <span className="badge is-good">{p.refundedMinor >= p.amountMinor ? "Refunded" : `${euro(p.refundedMinor)} refunded`}</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
       </main>
     </>
   );

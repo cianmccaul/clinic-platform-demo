@@ -13,7 +13,7 @@ const BOOK = appUrl({ NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL });
 /** One guide on the dashboard. The API only sends it if the person's role includes it. */
 export default function StaffGuidePage({ params }: { params: { slug: string } }) {
   return (
-    <StaffGate permission="guides:therapist" title="Guides">
+    <StaffGate permission="guides:therapist" title="Help centre">
       {() => <StaffGuide slug={params.slug} />}
     </StaffGate>
   );
@@ -44,14 +44,14 @@ function StaffGuide({ slug }: { slug: string }) {
           </div>
         )}
         {error && (
-          <Notice tone="error" actions={<a className="btn btn-secondary" href="/dashboard/help">All guides</a>}>
+          <Notice tone="error" actions={<a className="btn btn-secondary" href="/dashboard/help">Back to the help centre</a>}>
             <p>{error}</p>
           </Notice>
         )}
         {!error && !data && <p className="secondary">Loading…</p>}
         {data && (
           <>
-            <GuideView guide={data.guide} shots={data.shots} back={{ href: "/dashboard/help", label: "All guides" }} book={BOOK} />
+            <GuideView guide={data.guide} shots={data.shots} back={{ href: "/dashboard/help", label: "Back to the help centre" }} book={BOOK} />
             <ScrollToHash />
           </>
         )}

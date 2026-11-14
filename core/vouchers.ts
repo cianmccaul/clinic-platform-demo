@@ -317,19 +317,18 @@ export function totalsByTherapist(uses: { practitionerId: string; practitionerNa
 }
 
 /**
- * Gift vouchers stopped being sold on 9 Nov 2026: no new vouchers are made, online
- * or at the desk. Existing vouchers can still be used: reception looks the code up
- * on the dashboard and takes it off for the treatment. VOUCHER_SALES no longer
- * switches online sales on.
+ * Demo: gift vouchers are on sale and can be used at online checkout, so the
+ * whole feature can be tried end to end. (Production switches each on with an
+ * environment variable.)
  */
-export const VOUCHER_SALES_CLOSED = true;
-export const voucherSalesOn = (_env: Record<string, string | undefined>) => false;
+export const VOUCHER_SALES_CLOSED = false;
+export const voucherSalesOn = (_env: Record<string, string | undefined>) => true;
 
 // ---------------------------------------------------------------- v2: using a voucher when booking online
 
 /**
- * Patients can type a voucher code when they pay online, once VOUCHER_CHECKOUT is "on" in
- * Vercel (separate from VOUCHER_SALES, so it can be tried on its own first).
+ * Patients can type a voucher code when they pay online, once VOUCHER_CHECKOUT is "on"
+ * (separate from sales, so it can be tried on its own first). The demo's server answers "on".
  */
 export const voucherCheckoutOn = (env: Record<string, string | undefined>) => (env.VOUCHER_CHECKOUT ?? "").trim().toLowerCase() === "on";
 

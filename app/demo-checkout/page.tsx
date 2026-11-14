@@ -33,6 +33,8 @@ export default function DemoCheckout() {
 
   if (session === undefined) return null;
   const t = session && typeById(session.meta.appointmentTypeId);
+  // A gift voucher being bought: no appointment, paid to the clinic's own account.
+  const voucher = !!session?.meta.voucherPurchaseId;
 
   return (
     <>
@@ -63,15 +65,26 @@ export default function DemoCheckout() {
               window.location.href = session.meta.returnUrl ?? `/booking/confirmed?session_id=${encodeURIComponent(session.id)}`;
             }}
           >
-            <section className="panel">
-              <h2 className="panel-title">{t?.name.replace(/ - .*$/, "")}</h2>
-              <p className="panel-meta">
-                {practitionerName(session.meta.practitionerId)}, {whenLong(session.meta.startsAtISO)}
-              </p>
-              <p className="panel-meta">
-                Paid straight into {practitionerName(session.meta.practitionerId)}&apos;s own Stripe account. {session.meta.patient.firstName} {session.meta.patient.lastName}, {session.meta.patient.email}
-              </p>
-            </section>
+            {voucher ? (
+              <section className="panel">
+                <h2 className="panel-title">Northbank gift voucher</h2>
+                <p className="panel-meta">
+                  Paid into the clinic&apos;s own Stripe account. {session.meta.patient.firstName} {session.meta.patient.lastName}, {session.meta.patient.email}
+                </p>
+                <p className="panel-meta">The voucher&apos;s code arrives by email: open the Inbox in the demo bar after paying.</p>
+              </section>
+            ) : (
+              <section className="panel">
+                <h2 className="panel-title">{t?.name.replace(/ - .*$/, "")}</h2>
+                <p className="panel-meta">
+                  {practitionerName(session.meta.practitionerId)}, {whenLong(session.meta.startsAtISO)}
+                </p>
+                <p className="panel-meta">
+                  Paid straight into {practitionerName(session.meta.practitionerId)}&apos;s own Stripe account. {session.meta.patient.firstName} {session.meta.patient.lastName}, {session.meta.patient.email}
+                </p>
+                {session.meta.voucher && <p className="panel-meta">{euro(session.meta.voucher.amountMinor)} is coming off your gift voucher, so only the rest is paid by card.</p>}
+              </section>
+            )}
 
             <section className="panel stack-4">
               <div className="field">
@@ -90,7 +103,7 @@ export default function DemoCheckout() {
               </div>
             </section>
 
-            {!session.meta.visitPaymentId && (
+            {!session.meta.visitPaymentId && !voucher && (
             <fieldset className="radio-list">
               <legend className="label">Simulate a problem (demo only)</legend>
               {OPTIONS.map((o) => (
@@ -111,7 +124,7 @@ export default function DemoCheckout() {
               </Notice>
             )}
             <div className="actions">
-              <a className="btn btn-secondary" href={session.meta.returnUrl ? session.meta.returnUrl.replace("paid=1", "cancelled=1") : "/?cancelled=1"}>
+              <a className="btn btn-secondary" href={voucher ? "/vouchers?cancelled=1" : session.meta.returnUrl ? session.meta.returnUrl.replace("paid=1", "cancelled=1") : "/?cancelled=1"}>
                 <Icon name="chevron-left" /> Back
               </a>
               <button className="btn btn-primary" disabled={paying}>

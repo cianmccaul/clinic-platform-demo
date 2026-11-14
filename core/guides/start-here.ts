@@ -16,7 +16,7 @@ export const START_HERE_GUIDES: Guide[] = [
           ["Appointments, patient notes, the diary", "The practice management system (Cliniko)"],
           ["Card payments, refunds, payouts", "Stripe, through this dashboard"],
           ["Online bookings, phone bookings, pay links, refunds, no-shows", "This dashboard"],
-          ["How do I...?", "These guides"],
+          ["How do I...?", "The help centre"],
         ],
       },
       { type: "text", text: "The diary is always the source of truth for who is booked when. The dashboard asks the diary every time, so it never shows an out-of-date copy." },

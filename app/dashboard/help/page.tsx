@@ -14,9 +14,9 @@ type Group = { audience: string; label: string; guides: { slug: string; title: s
  */
 export default function StaffHelpPage() {
   return (
-    <StaffGate permission="guides:therapist" title="Guides">
+    <StaffGate permission="guides:therapist" title="Help centre">
       {() => (
-        <DashboardShell title="Guides" lede="New here? Start with Start here: how Northbank works. Every guide has the steps, and most have pictures with the button to press circled." narrow>
+        <DashboardShell title="Help centre" lede="New here? Start with Start here: how the clinic's systems fit together. Every guide has the steps, with numbered pictures of the screen." narrow>
           <GuideIndex />
         </DashboardShell>
       )}
@@ -49,7 +49,7 @@ function GuideIndex() {
   return (
     <div className="stack-6">
       {limited && (
-        <Notice tone="warning" title="More guides after Face ID">
+        <Notice tone="warning" title="More of the help centre after Face ID">
           <p>
             You signed in with an emailed code. Set up Face ID or fingerprint on the <a href="/dashboard">dashboard home</a> to see the guides for your
             role.

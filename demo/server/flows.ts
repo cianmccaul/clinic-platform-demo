@@ -328,14 +328,31 @@ export function chargeSaved(db: Db, now: number, patientId: string, body: Checko
   const card = db.savedCards[patientId];
   if (!card) return { status: 402, json: { error: "card_unavailable", message: "Please enter your card details for this appointment." } };
   const patient = db.patients.find((x) => x.id === patientId)!;
-  const pi = charge(db, now, { practitionerId: p.id, amountMinor: priceMinor(t.id), description: `${plainType(t.name)} ${whenShort(body.startsAtISO)}`, patientId, card });
+  // A gift voucher first; the saved card pays whatever is left.
+  let fromVoucher = 0;
+  let voucher: ReturnType<typeof findVoucher> = null;
+  if (body.voucher) {
+    const r = previewVoucher(db, now, body.voucher.code, priceMinor(t.id));
+    if (!r.ok) return { status: 409, json: { error: "voucher", message: r.message } };
+    if (r.appliedMinor !== body.voucher.appliedMinor) return { status: 409, json: { error: "voucher", message: "The amount left on this voucher has changed. Apply it again to see what it covers." } };
+    fromVoucher = r.appliedMinor;
+    voucher = r.voucher;
+  }
+  const due = priceMinor(t.id) - fromVoucher;
+  const pi = due > 0 ? charge(db, now, { practitionerId: p.id, amountMinor: due, description: `${plainType(t.name)} ${whenShort(body.startsAtISO)}`, patientId, card }) : null;
   const appt = createAppointment(db, now, { patientId, practitionerId: p.id, typeId: t.id, startsAt: body.startsAtISO, note: body.visit ? `Patient type: ${body.visit}` : undefined });
   const record = newRecord(appt, patient, now);
-  record.payments.push(entryFor(pi, "full"));
+  if (pi) record.payments.push(entryFor(pi, "full"));
+  if (voucher && fromVoucher > 0) {
+    const e = addEvent(db, now, voucher, { kind: "redeemed", amountMinor: -fromVoucher, practitionerId: p.id, treatmentDay: appt.starts_at.slice(0, 10), note: `Online booking, ${plainType(t.name)}`, appointmentId: appt.id });
+    record.voucher = { voucherId: voucher.id, code: voucher.code, holdId: appt.id, eventId: e.id, amountMinor: fromVoucher, at: e.at };
+    appendNote(db, appt.id, `Gift voucher ${maskCode(voucher.code)}: ${euro(fromVoucher)} used`);
+  }
   db.bookings[appt.id] = record;
-  sendEmail(db, now, patient.email, `Booked: ${plainType(t.name)}, ${whenShort(appt.starts_at)}`, `Hi ${patient.first_name},\n\nYou're booked in with ${practitionerName(p.id)} on ${whenLong(appt.starts_at)}, paid with your saved card ending ${card.last4}.`);
-  audit(db, now, { actor: "patient", action: "booking.saved_card", appointmentId: appt.id, amountMinor: pi.amount });
-  return { status: 200, json: { paymentIntentId: pi.id, status: "succeeded", voucherMinor: 0 } };
+  const paidWith = [pi ? `${euro(pi.amount)} on your saved card ending ${card.last4}` : "", fromVoucher ? `${euro(fromVoucher)} from your gift voucher ${displayCode(voucher!.code)}` : ""].filter(Boolean).join(" and ");
+  sendEmail(db, now, patient.email, `Booked: ${plainType(t.name)}, ${whenShort(appt.starts_at)}`, `Hi ${patient.first_name},\n\nYou're booked in with ${practitionerName(p.id)} on ${whenLong(appt.starts_at)}, paid with ${paidWith}.\n\n[Manage your booking](/manage)`);
+  audit(db, now, { actor: "patient", action: "booking.saved_card", appointmentId: appt.id, amountMinor: pi?.amount, note: fromVoucher ? `${euro(fromVoucher)} by gift voucher` : undefined });
+  return { status: 200, json: { paymentIntentId: pi?.id ?? null, status: "succeeded", voucherMinor: fromVoucher } };
 }
 
 // ---------------------------------------------------------------- cancel and move

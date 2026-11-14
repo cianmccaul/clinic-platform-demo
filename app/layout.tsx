@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <a href={`${book}/cancellation-policy`}>Cancellation policy</a>
                   </li>
                   <li>
-                    <a href={helpUrl(process.env)}>Help and guides</a>
+                    <a href={helpUrl(process.env)}>Help centre</a>
                   </li>
                 </ul>
               </nav>

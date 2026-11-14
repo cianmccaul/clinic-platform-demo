@@ -9,8 +9,7 @@ import { typedEuroToMinor } from "@/core/vouchers";
 /**
  * Gift vouchers (ADR 0008, plan-2026-10-28-gift-vouchers). Reception: look a
  * voucher up, use it for a treatment, undo a mistake, email it again, print it.
- * Selling stopped on 9 Nov 2026: existing vouchers can still be used. Owners also: refund, cancel, bring Vaoucher's
- * vouchers over, what's owed, and what was used with each therapist.
+ * Owners also: refund, cancel, what's owed, and what was used with each therapist.
  */
 export default function VouchersPage() {
   return (
@@ -55,7 +54,7 @@ type Overview = {
 
 const fmtWhen = (iso: string) => new Date(iso).toLocaleString("en-IE", { timeZone: "Europe/Dublin", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const KIND: Record<string, string> = { issued: "Value added", redeemed: "Used", undone: "Use undone", refunded: "Refunded", cancelled: "Cancelled", adjusted: "Adjusted" };
-const SOURCE: Record<string, string> = { online: "Bought online", desk: "Sold at the desk", imported: "From Vaoucher" };
+const SOURCE: Record<string, string> = { online: "Bought online", desk: "Sold at the desk", imported: "Brought over" };
 
 async function call(method: "GET" | "POST", url: string, body?: unknown) {
   const res = await fetch(url, { method, cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -147,8 +146,10 @@ function Vouchers() {
 
         {voucher && overview && <VoucherCard key={voucher.id} v={voucher} overview={overview} headingRef={cardRef} focusTick={focusTick} result={result} onDone={after} onError={(text) => setResult({ ok: false, text })} />}
 
-        <Notice tone="info" title="Gift vouchers aren't sold any more">
-          <p>No new vouchers can be made, online or at the desk. Existing vouchers can still be used: look the code up above and press Use for a treatment.</p>
+        <Notice tone="info" title="Gift vouchers are on sale">
+          <p>
+            Patients buy them on the <a href="/vouchers">gift vouchers page</a> and can use the code when they pay online. At the desk, look the code up above and press Use for a treatment.
+          </p>
         </Notice>
 
         {overview && (
@@ -261,7 +262,6 @@ function Vouchers() {
                 )}
               </section>
             )}
-            <ImportVaoucher onDone={() => loadOverview(period || undefined)} />
           </>
         )}
       </div>
@@ -405,11 +405,6 @@ function VoucherCard({
             Email again
           </button>
         )}
-        {v.status === "active" && v.expiresOn && (
-          <a className="btn btn-secondary" href={`/api/admin/vouchers/pdf?id=${v.id}`} target="_blank" rel="noopener noreferrer">
-            Print / open PDF<span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-        )}
         {overview.canManage && v.status === "active" && v.balanceMinor > 0 && (
           <button className="btn btn-secondary" type="button" aria-expanded={open === "refund"} onClick={() => toggle("refund")}>
             Refund
@@ -537,7 +532,7 @@ function VoucherCard({
           <p className="secondary">
             {v.paidOnline
               ? "Bought online: the refund goes back to the card the buyer paid with, through Stripe (5–10 working days)."
-              : "Sold at the desk or brought over from Vaoucher: give the money back on the card machine or in cash first, then record it here."}{" "}
+              : "Sold at the desk: give the money back on the card machine or in cash first, then record it here."}{" "}
             It comes off the voucher straight away.
           </p>
           <div className="field">
@@ -575,80 +570,5 @@ function VoucherCard({
         </form>
       )}
     </section>
-  );
-}
-
-function ImportVaoucher({ onDone }: { onDone: () => void }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{ rows: { code: string; balanceMinor: number; expiresOn: string; name: string }[]; problems: string[] } | null>(null);
-  const [done, setDone] = useState("");
-  const [error, setError] = useState("");
-
-  const send = async (confirm: boolean) => {
-    setBusy(true);
-    setError("");
-    setDone("");
-    try {
-      const d = await call("POST", "/api/admin/vouchers", { action: "import", text, confirm });
-      if (d.preview) setPreview({ rows: d.rows, problems: d.problems });
-      else {
-        setPreview(null);
-        setText("");
-        setDone(`${d.added} voucher${d.added === 1 ? "" : "s"} brought over.${d.skipped.length ? ` Already here, so skipped: ${d.skipped.join(", ")}.` : ""}`);
-        onDone();
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
-    setBusy(false);
-  };
-
-  return (
-    <details className="panel">
-      <summary className="panel-title">Bring vouchers over from Vaoucher</summary>
-      <div className="stack-4" style={{ marginTop: "var(--space-4)" }}>
-        <p className="secondary">
-          Paste Vaoucher&apos;s unused vouchers, one per line: code, amount left, expiry date, and optionally the name. For example: <code>XMAS-25-AB12, 50, 31/12/2030, Mary Byrne</code>. They keep their own codes. Check the list first; nothing is saved until you press
-          Bring them over.
-        </p>
-        <div className="field">
-          <label htmlFor="imp-text">Vouchers</label>
-          <textarea
-            id="imp-text"
-            rows={6}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setPreview(null);
-            }}
-          />
-        </div>
-        <div className="row-actions">
-          <button className="btn btn-secondary" type="button" disabled={busy || !text.trim()} onClick={() => send(false)}>
-            Check the list
-          </button>
-          {preview && !preview.problems.length && preview.rows.length > 0 && (
-            <button className="btn btn-primary" type="button" disabled={busy} onClick={() => send(true)}>
-              Bring {preview.rows.length} over ({euroText(preview.rows.reduce((s, r) => s + r.balanceMinor, 0))})
-            </button>
-          )}
-        </div>
-        <div role="status" aria-live="polite">
-          {preview && preview.problems.length > 0 && (
-            <Notice tone="warning" title="Fix these lines first">
-              <ul>
-                {preview.problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </Notice>
-          )}
-          {preview && !preview.problems.length && <p className="secondary">{preview.rows.length} vouchers look right.</p>}
-          {done && <p>{done}</p>}
-          {error && <p className="field-error">{error}</p>}
-        </div>
-      </div>
-    </details>
   );
 }

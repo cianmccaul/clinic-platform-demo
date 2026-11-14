@@ -3080,3 +3080,44 @@ a.option {
 [data-menu-path] {
   scroll-margin-top: 88px;
 }
+
+/* ---------- Past payments (Manage a booking) ---------- */
+.payment-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: var(--border-width) solid var(--color-hairline);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-divider);
+}
+.payment-row:last-child {
+  border-bottom: 0;
+}
+.payment-main {
+  min-width: 0;
+}
+.payment-main p,
+.payment-amount p {
+  margin: 0;
+}
+.payment-what {
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink);
+}
+.payment-amount {
+  flex: none;
+  text-align: right;
+  display: grid;
+  gap: var(--space-1);
+  justify-items: end;
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink);
+}

@@ -29,7 +29,7 @@ type Row = {
 type Practitioner = { id: string; name: string };
 
 const ROLE_HELP: Record<Role, string> = {
-  therapist: "Guides for patients and therapists. Their own diary and payments later.",
+  therapist: "The help centre for patients and therapists. Their own diary and payments later.",
   admin: "Reception: bookings, phone bookings, refunds, extras, pausing online booking.",
   owner: "Everything, including adding and removing anyone.",
   superadmin: "Technical support: everything except changing owners.",

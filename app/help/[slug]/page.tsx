@@ -13,7 +13,7 @@ export const dynamicParams = false;
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const g = findPatientGuide(params.slug);
-  return g ? { title: `${g.title} · Northbank help`, description: g.summary } : {};
+  return g ? { title: `${g.title} · Northbank help centre`, description: g.summary } : {};
 }
 
 export default function PatientGuidePage({ params }: { params: { slug: string } }) {
@@ -24,7 +24,7 @@ export default function PatientGuidePage({ params }: { params: { slug: string } 
       <SiteHeader />
       <main id="main" className="page page-narrow">
         <div className="stack-6">
-          <GuideView guide={guide} shots={resolvePublicShots(guide)} back={{ href: "/help", label: "All help guides" }} book={appUrl(process.env)} />
+          <GuideView guide={guide} shots={resolvePublicShots(guide)} back={{ href: "/help", label: "Back to the help centre" }} book={appUrl(process.env)} />
           <Notice title="Still stuck?">
             <p>
               Call us on <a href={CLINIC_TEL}>{CLINIC_PHONE}</a> and we&apos;ll sort it out with you.
