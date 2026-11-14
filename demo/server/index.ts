@@ -14,8 +14,9 @@ import "./routes/reception";
 import "./routes/money";
 import "./routes/waitlist";
 import "./routes/readonly";
+import "./routes/vouchers";
 
-const KEY = "northbank-demo:v4";
+const KEY = "northbank-demo:v5";
 let db: Db | null = null;
 const listeners = new Set<() => void>();
 
@@ -24,7 +25,7 @@ function load(now: number): Db {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const saved = JSON.parse(raw) as Db;
-      if (saved?.version === 4 && saved.seededFor === dublinDay(new Date(now).toISOString())) return saved;
+      if (saved?.version === 5 && saved.seededFor === dublinDay(new Date(now).toISOString())) return saved;
     }
   } catch {
     /* start fresh */

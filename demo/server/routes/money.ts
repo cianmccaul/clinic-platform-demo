@@ -1,6 +1,7 @@
 /** Reception's payment routes: book by phone, pay links, saved cards, take a payment for a past visit, invoices and KPIs. */
 import { CLINIC_PHONE, euro, formatDublin } from "@/core/policy";
 import { dayLong, whenShort } from "@/core/format";
+import { toE164 } from "@/core/phone-booking";
 import { VISIT_LINK_DAYS, VISIT_LOOKBACK_DAYS, suggestedVisitMinor, visitAmountRefusal, visitAppointmentRefusal } from "@/core/visit-payment";
 import { BUSINESS, PRACTITIONERS, practitionerById, practitionerName, priceMinor, typeById } from "../clinic";
 import { type CheckoutSession, type Db, audit, feeNetPaidMinor, nextNum, randomToken, sendEmail, stripeId } from "../db";
@@ -16,16 +17,17 @@ const plain = (n?: string) => (n ?? "").replace(/^\d+\.\s*/, "").replace(/ - .*$
 
 // ---- Book a patient by phone
 
-// No texts or card-over-the-phone in the demo: those need Twilio and Stripe Elements.
-route("GET", "/api/admin/phone-booking", () => ok({ email: true, sms: false, phoneCard: false }));
+// Texts are switched on in the demo (they land in the demo inbox). Card-over-the-phone needs Stripe Elements, so it stays off.
+route("GET", "/api/admin/phone-booking", () => ok({ email: true, sms: true, phoneCard: false }));
 
 route("POST", "/api/admin/phone-booking", (db, now, req) => {
   const b = req.body ?? {};
   if (!db.flags.onlineBooking) return fail(503, { error: "Online booking is paused just now. (Online booking is paused, so no payment links can be sent.)" });
-  if (b.channel === "sms") return fail(400, { error: "Texts aren't set up yet. Send the link by email instead." });
+  const channel = b.channel === "sms" ? "sms" : "email";
+  if (channel === "sms" && !toE164(b.patient?.phone ?? "")) return fail(400, { error: "That mobile number doesn't look right. Check it, or send the link by email instead." });
   const p = b.patient ?? {};
   const r = createPayLink(db, now, {
-    practitionerId: String(b.practitionerId), appointmentTypeId: String(b.appointmentTypeId), startsAtISO: b.startsAtISO, by: BY, channel: "email",
+    practitionerId: String(b.practitionerId), appointmentTypeId: String(b.appointmentTypeId), startsAtISO: b.startsAtISO, by: BY, channel,
     patient: { firstName: p.firstName ?? "", lastName: p.lastName ?? "", email: p.email ?? "", phone: p.phone ?? "", ...(b.clinikoPatientId ? { clinikoPatientId: String(b.clinikoPatientId) } : {}) },
   });
   if ("error" in r) return fail(r.status, { error: r.error, code: r.code });

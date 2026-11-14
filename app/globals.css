@@ -3038,3 +3038,45 @@ a.option {
   border-radius: var(--radius-control);
   background: var(--color-primary-tint);
 }
+
+/* ---------- Step 1 as dropdowns (components/booking/TreatmentMenu.tsx) ---------- */
+
+/* An open dropdown: highlighted like a chosen row, chevron turned up. */
+.option.dropdown[aria-expanded="true"] {
+  border: 2px solid var(--color-primary);
+  background: var(--color-primary-tint);
+  padding: calc(var(--space-4) - 1px) calc(var(--space-5) - 1px);
+}
+
+.dropdown-chevron {
+  transition: transform var(--motion-fast) var(--ease);
+}
+
+.option.dropdown[aria-expanded="true"] .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-chevron {
+    transition: none;
+  }
+}
+
+/* What opens underneath: indented a little, with a line back up to the card it belongs to. */
+.dropdown-panel {
+  margin: var(--space-3) 0 var(--space-2) var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-primary);
+}
+
+.dropdown-question {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink);
+}
+
+/* Keep a card clear of the sticky header when it's scrolled into view. */
+[data-menu-path] {
+  scroll-margin-top: 88px;
+}

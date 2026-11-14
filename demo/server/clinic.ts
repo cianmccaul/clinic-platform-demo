@@ -23,6 +23,10 @@ export const TYPES: DemoType[] = [
   { id: "206", name: "Physiotherapy with Laser - Returning Patient", category: "Physiotherapy", duration_in_minutes: 45, priceEUR: 90, show_in_online_bookings: true, description: "Follow-up physio with laser therapy." },
   { id: "203", name: "Sports Massage - New Patient", category: "Massage", duration_in_minutes: 60, priceEUR: 75, show_in_online_bookings: true, description: "Deep tissue massage for recovery and tight muscles." },
   { id: "204", name: "Sports Massage - Returning Patient", category: "Massage", duration_in_minutes: 60, priceEUR: 70, show_in_online_bookings: true, description: "For patients who've had a massage with us before." },
+  // Added with the booking menu (core/booking-menu.ts), so its dropdowns have real choices behind them.
+  { id: "207", name: "Physiotherapy - Returning Patient (30 mins)", category: "Physiotherapy", duration_in_minutes: 30, priceEUR: 55, show_in_online_bookings: true, description: "A shorter follow-up, when your physio suggests one." },
+  { id: "208", name: "Sports Massage (90 mins)", category: "Massage", duration_in_minutes: 90, priceEUR: 100, show_in_online_bookings: true, description: "A longer session, for the whole body or a stubborn area." },
+  { id: "209", name: "Running Assessment", category: "Physiotherapy", duration_in_minutes: 60, priceEUR: 95, show_in_online_bookings: true, description: "Video gait analysis on the treadmill, with a plan to take home." },
 ];
 
 export type DemoPractitioner = {
@@ -44,28 +48,28 @@ export const PRACTITIONERS: DemoPractitioner[] = [
   {
     id: "101", first_name: "Sarah", last_name: "Byrne", title: "Chartered Physiotherapist",
     description: "Sarah treats sports injuries, knees and runners. She works with local GAA and athletics clubs.\n\n**Special interests:** ACL rehab, running injuries, shockwave therapy.",
-    show_in_online_bookings: true, offers: ["201", "202", "205"],
+    show_in_online_bookings: true, offers: ["201", "202", "205", "207", "209"],
     hours: { 1: ["08:00", "16:00"], 2: ["08:00", "16:00"], 3: ["12:00", "20:00"], 4: ["08:00", "16:00"], 6: ["09:00", "13:00"] },
     account: "acct_demo_sarah",
   },
   {
     id: "102", first_name: "Mark", last_name: "Ryan", title: "Chartered Physiotherapist",
     description: "Mark looks after back and neck pain, posture and desk workers.\n\n**Special interests:** low back pain, headaches, laser therapy.",
-    show_in_online_bookings: true, offers: ["201", "202", "206"],
+    show_in_online_bookings: true, offers: ["201", "202", "206", "207"],
     hours: { 1: ["12:00", "20:00"], 2: ["12:00", "20:00"], 4: ["12:00", "20:00"], 5: ["08:00", "16:00"] },
     account: "acct_demo_mark",
   },
   {
     id: "103", first_name: "Lucy", last_name: "Chen", title: "Sports Massage Therapist",
     description: "Lucy gives sports and deep tissue massage for recovery, training and tight muscles.",
-    show_in_online_bookings: true, offers: ["203", "204"],
+    show_in_online_bookings: true, offers: ["203", "204", "208"],
     hours: { 2: ["10:00", "18:00"], 3: ["10:00", "18:00"], 5: ["10:00", "18:00"], 6: ["09:00", "13:00"] },
     account: "acct_demo_lucy",
   },
   {
     id: "104", first_name: "Tom", last_name: "Hayes", title: "Chartered Physiotherapist",
     description: "Tom works with shoulders, rehab after surgery and older adults.\n\n**Special interests:** shoulder rehab, falls prevention, shockwave therapy.",
-    show_in_online_bookings: true, offers: ["201", "202", "205"],
+    show_in_online_bookings: true, offers: ["201", "202", "205", "207"],
     hours: { 1: ["09:00", "17:00"], 3: ["09:00", "17:00"], 4: ["09:00", "17:00"], 5: ["09:00", "17:00"] },
     account: "acct_demo_tom",
   },

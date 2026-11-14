@@ -5,9 +5,10 @@
  */
 import { CLINIC_PHONE, EXTRAS_SENTENCE, euro } from "@/core/policy";
 import { whenLong, whenShort } from "@/core/format";
-import { PAY_LINK_HOLD_SECONDS } from "@/core/phone-booking";
+import { PAY_LINK_HOLD_SECONDS, payLinkSms } from "@/core/phone-booking";
+import { waitlistOfferSms } from "@/core/waitlist";
 import { practitionerName, priceMinor, typeById } from "./clinic";
-import { type Db, type PayLink, audit, nextNum, randomToken } from "./db";
+import { type Db, type PayLink, audit, nextNum, randomToken, sendText } from "./db";
 import { hold, isSlotAvailable, plusMinutes } from "./diary";
 import { mail } from "./flows";
 
@@ -44,7 +45,11 @@ export function createPayLink(
     first_name: a.patient.firstName, treatment: plain(t.name), practitioner: practitionerName(a.practitionerId),
     when: whenLong(a.startsAtISO), when_short: whenShort(a.startsAtISO), amount: euro(link.amountMinor), hold_until: timeOnly(expiresAt), clinic_phone: CLINIC_PHONE,
   };
-  if (a.waitlistEntryId) {
+  // Texts are on in the demo: a text carries the date and one link, never the treatment (texts show on lock screens).
+  if (a.channel === "sms") {
+    const words = a.waitlistEntryId ? waitlistOfferSms : payLinkSms;
+    sendText(db, now, a.patient.phone, `${words({ url: "the link below.", startsAtISO: a.startsAtISO, expiresAtISO: expiresAt, phone: CLINIC_PHONE }).trim()}\n\n[Open the link](/pay/${link.token})`);
+  } else if (a.waitlistEntryId) {
     const entry = db.waitlist.find((e) => e.id === a.waitlistEntryId)!;
     mail(db, now, a.patient.email, "waitlist_offer", { ...facts, waitlist_name: `${a.patient.firstName} ${a.patient.lastName}`, leave_link: `/waitlist/leave/${entry.leaveToken}` }, `/pay/${link.token}`);
   } else {

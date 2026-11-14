@@ -67,42 +67,6 @@ route("GET", "/api/admin/uninvoiced", (db, now) => {
   return ok({ from: addDays(today, -14), to: today, today, unchecked: 0, bookings: rows, hubInvoicesFrom: null });
 });
 
-// ---- Gift vouchers (sample)
-
-function vouchers(now: number) {
-  const today = todayOf(now);
-  const mk = (i: number, code: string, amount: number, balance: number, buyer: string, recipient: string | null, source: "online" | "desk", daysAgo: number) => ({
-    id: `v${i}`, code, status: "active" as const, source, amountMinor: amount, balanceMinor: balance, purchaseDay: addDays(today, -daysAgo), expiresOn: addDays(today, 5 * 365 - daysAgo), expired: false,
-    buyerName: buyer, buyerEmail: `${buyer.split(" ")[0].toLowerCase()}@example.com`, recipientName: recipient, recipientEmail: null, message: recipient ? "Happy birthday! Enjoy." : null,
-    paidBy: source === "online" ? "card online" : "card machine", paidOnline: source === "online", emailedAt: new Date(now - daysAgo * 86_400_000).toISOString(), emailError: null,
-    events: [
-      { id: `e${i}a`, at: new Date(now - daysAgo * 86_400_000).toISOString(), kind: "issued", amountMinor: amount, practitionerName: null, treatmentDay: null, byStaff: source === "desk" ? "Joan (Reception)" : null, note: "", undone: false, unconfirmed: false },
-      ...(balance < amount ? [{ id: `e${i}b`, at: new Date(now - 3 * 86_400_000).toISOString(), kind: "redeemed", amountMinor: amount - balance, practitionerName: "Lucy Chen", treatmentDay: addDays(today, -3), byStaff: "Joan (Reception)", note: "Sports massage", undone: false, unconfirmed: false }] : []),
-    ],
-  });
-  return [
-    mk(1, "NB-7KQ4-X9TP-2HRM", 10000, 3000, "Orla Brennan", "Niamh Brennan", "online", 20),
-    mk(2, "NB-3MWD-8LZC-5QAN", 7500, 7500, "Peter Walsh", null, "desk", 9),
-    mk(3, "NB-9RTX-2BVE-6KJF", 15000, 15000, "Sinead Kelly", "Tom Kelly", "online", 2),
-  ];
-}
-
-route("GET", "/api/admin/vouchers", (_db, now, req) => {
-  const list = vouchers(now);
-  const code = req.url.searchParams.get("code");
-  if (code) {
-    const v = list.find((x) => x.code.replace(/[^A-Z0-9]/gi, "").toUpperCase() === code.replace(/[^A-Z0-9]/gi, "").toUpperCase());
-    return v ? ok({ voucher: v }) : fail(404, { error: "No voucher with that code. Try one of the sample codes, like NB-7KQ4-X9TP-2HRM." });
-  }
-  const today = todayOf(now);
-  return ok({
-    today, canManage: false, practitioners: PRACTITIONERS.map((p) => ({ id: p.id, name: practitionerName(p.id) })),
-    recent: list.map((v) => ({ id: v.id, code: v.code, status: v.status, source: v.source, amountMinor: v.amountMinor, balanceMinor: v.balanceMinor, createdAt: v.events[0].at, forName: v.recipientName ?? v.buyerName, emailed: true, emailError: null })),
-    outstanding: { liveCount: list.length, liveMinor: list.reduce((s, v) => s + v.balanceMinor, 0), expiredCount: 0, expiredMinor: 0 },
-    period: { month: today.slice(0, 7), fromDay: `${today.slice(0, 7)}-01`, toDay: today, therapists: [{ practitionerId: "103", name: "Lucy Chen", amountMinor: 7000, count: 1 }] },
-  });
-});
-
 // ---- Tasks (sample)
 
 route("GET", "/api/staff/tasks", (_db, now) => {

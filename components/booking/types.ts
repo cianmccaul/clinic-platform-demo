@@ -98,6 +98,13 @@ export type BookingDraft = {
   voucherEUR?: number;
   patient: Pick<Patient, "firstName" | "lastName" | "email" | "phone">;
   patientKind?: PatientKind | null;
+  /**
+   * A returning patient who entered the emailed code and pays by card
+   * (core/returning-checkout.ts): back from an abandoned payment page, the
+   * review step pays the same way without asking for the code again. The
+   * token lasts 30 minutes and only books onto their own record.
+   */
+  returning?: { email: string; token: string; missing: GapField[] };
 };
 
 export const DRAFT_KEY = "northbank-booking-draft";

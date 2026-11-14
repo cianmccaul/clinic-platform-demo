@@ -17,6 +17,7 @@ import {
   PractitionerStep,
   ReviewStep,
   TimeStep,
+  EXTERNAL_AREAS,
   TreatmentStep,
   areaOf,
   type AppliedVoucherView,
@@ -24,6 +25,9 @@ import {
   type WeekDay,
 } from "@/components/booking/Steps";
 import { kindOfType, typesFor, type PatientKind } from "@/core/patient-kind";
+import { buildBookingMenu, kindOnPath, pathToType, type MenuNode } from "@/core/booking-menu";
+import { isTherapistOnlyCategory } from "@/core/areas";
+import { TreatmentMenu } from "@/components/booking/TreatmentMenu";
 import { browserStore, clearPhoneDraft, readPhoneDraft, savePhoneDraft } from "@/core/phone-draft";
 import {
   EMPTY_PATIENT,
@@ -100,9 +104,9 @@ const todayDublin = () => dublinDay(new Date().toISOString());
  * reloads the page, which wiped every choice the patient had made.
  */
 let nextJsKeys: Record<string, unknown> = {};
-function historyState(own: { clinicStep: Step; area?: string | null }) {
+function historyState(own: { clinicStep: Step; area?: string | null; menu?: string[] }) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { clinicStep, area, ...rest } = (window.history.state ?? {}) as Record<string, unknown>;
+  const { clinicStep, area, menu, ...rest } = (window.history.state ?? {}) as Record<string, unknown>;
   // The skip link or an error link can leave an entry with no state at all:
   // keep the last keys Next.js set, so later entries still carry them.
   if (rest.__NA) nextJsKeys = rest;
@@ -112,6 +116,8 @@ function historyState(own: { clinicStep: Step; area?: string | null }) {
 type PhoneDraft = {
   step: Step;
   area: string | null;
+  /** The dropdowns open on step 1. */
+  menu?: string[];
   patientKind: PatientKind | null;
   type: AppointmentType | null;
   practitioner: Practitioner | null;
@@ -194,6 +200,8 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
 
   // ---- Step 1: treatment ----
   const [appointmentTypes, setAppointmentTypes] = useState<AppointmentType[]>([]);
+  // The clinic's menu over the same list (room rentals left out, Podiatry links to the partner clinic as before).
+  const bookingMenu = useMemo(() => buildBookingMenu(appointmentTypes.filter((t) => !isTherapistOnlyCategory(t.category)), EXTERNAL_AREAS), [appointmentTypes]);
   const [typesLoading, setTypesLoading] = useState(true);
   const [typesError, setTypesError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<AppointmentType | null>(null);
@@ -201,6 +209,10 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   // New or returning patient, asked before the treatments (core/patient-kind.ts).
   const [patientKind, setPatientKind] = useState<PatientKind | null>(null);
+  // Step 1 as dropdowns (core/booking-menu.ts), for patients and for reception's phone booking;
+  // the open dropdowns, e.g. ["physiotherapy", "general-physio", "returning"]. Staff also see phone-only types.
+  const menuMode = true;
+  const [menuPath, setMenuPath] = useState<string[]>([]);
 
   // ---- Step 2: practitioner ----
   const [practitioners, setPractitioners] = useState<Practitioner[]>([]);
@@ -227,10 +239,13 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   // The caller, picked in the patient lookup: the booking is made on this Cliniko record.
   const [chosenPatient, setChosenPatient] = useState<ChosenPatient | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  // Returning patients: email → emailed code → pay with the saved card,
-  // skipping the details form and Stripe Checkout.
+  // Returning patients: email → emailed code → their details come from
+  // their record, so they skip the form (only gaps are asked). With a
+  // saved card they skip the payment page too; without one they pay by card
+  // (core/returning-checkout.ts).
   const [returning, setReturning] = useState<ReturningState>(EMPTY_RETURNING);
-  const payingWithSavedCard = returning.stage === "verified" && !!returning.token;
+  const verifiedOnFile = returning.stage === "verified" && !!returning.token;
+  const payingWithSavedCard = verifiedOnFile && !!returning.card;
 
   // ---- Step 5: review and pay ----
   // Everyone pays the full fee when they book (8 Oct 2026): no choice to make.
@@ -305,11 +320,11 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
 
   // ------------------------------------------------------------ navigation
 
-  const goTo = useCallback((next: Step, opts: { replace?: boolean; area?: string | null } = {}) => {
+  const goTo = useCallback((next: Step, opts: { replace?: boolean; area?: string | null; menu?: string[] } = {}) => {
     setStep(next);
     focusOnStep.current = true;
     try {
-      const state = historyState(opts.area !== undefined ? { clinicStep: next, area: opts.area } : { clinicStep: next });
+      const state = historyState({ clinicStep: next, ...(opts.area !== undefined ? { area: opts.area } : {}), ...(opts.menu !== undefined ? { menu: opts.menu } : {}) });
       if (opts.replace) window.history.replaceState(state, "");
       else window.history.pushState(state, "");
     } catch {}
@@ -329,6 +344,8 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
       setStep(s);
       if (e.state && "area" in e.state) setSelectedArea(e.state.area ?? null);
       else if (s === 1) setSelectedArea(null);
+      if (e.state && Array.isArray(e.state.menu)) setMenuPath(e.state.menu);
+      else if (s === 1) setMenuPath([]);
       focusOnStep.current = true;
     };
     window.addEventListener("popstate", onPop);
@@ -337,7 +354,12 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
 
   // Back and "Change" links: returning to step 1 opens the chosen treatment's area.
   function goToStep(s: Step) {
-    if (s === 1) {
+    if (s === 1 && menuMode) {
+      // "Change": reopen the dropdowns the chosen appointment was picked from.
+      const menu = selectedType ? pathToType(bookingMenu.root, selectedType.id, patientKind)?.slice(0, -1) ?? [] : [];
+      setMenuPath(menu);
+      goTo(1, { menu });
+    } else if (s === 1) {
       const area = selectedType ? areaOf(selectedType) : null;
       setSelectedArea(area);
       goTo(1, { area });
@@ -360,6 +382,26 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
     }
   }
 
+  /** A dropdown opened or closed: the cards now open (Back undoes it). */
+  function openMenu(path: string[], node: MenuNode<AppointmentType> | null) {
+    if (node?.kind === "branch" && node.patientKind) chooseKind(node.patientKind);
+    setMenuPath(path);
+    try {
+      window.history.pushState(historyState({ clinicStep: 1, menu: path }), "");
+    } catch {}
+  }
+
+  /** An appointment from the menu: the New / Return answer comes from the path (none for massage, acupuncture…). */
+  function chooseFromMenu(t: AppointmentType, path: string[]) {
+    const menu = path.slice(0, -1);
+    setMenuPath(menu);
+    try {
+      window.history.replaceState(historyState({ clinicStep: 1, menu }), "");
+    } catch {}
+    setPatientKind(kindOnPath(bookingMenu.root, path));
+    chooseType(t);
+  }
+
   function chooseArea(area: string | null) {
     setSelectedArea(area);
     focusOnStep.current = true;
@@ -369,7 +411,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   }
 
   // Never show a step whose earlier choices are missing (e.g. Forward after a Change).
-  const reachable: Step = !selectedType ? 1 : !selectedPractitioner ? 2 : !selectedTime ? 3 : step >= 5 && (payingWithSavedCard || patient.firstName) ? 5 : 4;
+  const reachable: Step = !selectedType ? 1 : !selectedPractitioner ? 2 : !selectedTime ? 3 : step >= 5 && (verifiedOnFile || patient.firstName) ? 5 : 4;
   const shownStep: Step = (Math.min(step, reachable) as Step) || 1;
 
   // Move focus to the new step's heading so screen readers announce it.
@@ -395,10 +437,11 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   // Remember each choice and the details typed so far, until the payment link is made.
   useEffect(() => {
     if (!draftUser || !draftReady || draftDone.current) return;
-    if (!patientKind && !selectedType) return;
+    if (!patientKind && !selectedType && !menuPath.length) return;
     savePhoneDraft<PhoneDraft>(browserStore(), draftUser, {
       step: shownStep,
       area: selectedArea,
+      menu: menuPath,
       patientKind,
       type: selectedType,
       practitioner: selectedPractitioner,
@@ -408,7 +451,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
       patient,
       chosen: chosenPatient,
     });
-  }, [draftUser, draftReady, shownStep, selectedArea, patientKind, selectedType, selectedPractitioner, firstAvailableChosen, selectedTime, businessId, patient, chosenPatient]);
+  }, [draftUser, draftReady, shownStep, selectedArea, menuPath, patientKind, selectedType, selectedPractitioner, firstAvailableChosen, selectedTime, businessId, patient, chosenPatient]);
 
   // ------------------------------------------------------------ data
 
@@ -634,7 +677,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   function continueFromDetails() {
     const p = { ...patient, dateOfBirth: normaliseDateOfBirth(patient.dateOfBirth) };
     if (p.dateOfBirth !== patient.dateOfBirth) setPatient(p);
-    const errors = payingWithSavedCard ? validate(p, returning.missing) : validate(p);
+    const errors = verifiedOnFile ? validate(p, returning.missing) : validate(p);
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       setTimeout(() => errorSummaryRef.current?.focus(), 0);
@@ -684,7 +727,9 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
     setResumeBusy(false);
     setDraftReady(true);
     const step: Step = lostTime ? 3 : d.step;
-    goTo(step, { replace: true, ...(step === 1 ? { area: d.area } : {}) });
+    const menu = d.menu ?? [];
+    setMenuPath(menu);
+    goTo(step, { replace: true, ...(step === 1 ? { area: d.area, menu } : {}) });
   }
 
   function startAgain() {
@@ -719,6 +764,13 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
   const lastType = lastVisit?.appointmentTypeId ? appointmentTypes.find((t) => String(t.id) === lastVisit.appointmentTypeId) ?? null : null;
   // Only offered when it's bookable online and fits new / returning as chosen.
   const sameTypeAgain = lastType && (!patientKind || typesFor([lastType], patientKind).length) ? lastType : null;
+  /** "Book … again": the same appointment, with the New / Return answer its place in the menu gives (a return one, if it's under both). */
+  function chooseAgain(t: AppointmentType) {
+    const path = pathToType(bookingMenu.root, t.id, "returning");
+    setPatientKind(path ? kindOnPath(bookingMenu.root, path) ?? patientKind : patientKind);
+    if (path) setMenuPath(path.slice(0, -1));
+    chooseType(t);
+  }
   const lastPractitioner = lastVisit?.practitionerId ? practitioners.find((p) => String(p.id) === lastVisit.practitionerId) ?? null : null;
 
   // ------------------------------------------------------------ returning patient
@@ -751,9 +803,12 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
       const data = await res.json();
       if (data.token) {
         setFieldErrors({});
-        setReturning((r) => ({ ...r, busy: false, stage: "verified", token: data.token, card: data.card, missing: data.missing ?? [] }));
+        setReturning((r) => ({ ...r, busy: false, stage: "verified", token: data.token, card: data.card ?? null, missing: data.missing ?? [] }));
+        // Shown on the review step ("Booking for"); the server books from their record, not from these.
+        if (data.firstName)
+          setPatient((p) => ({ ...p, firstName: data.firstName, lastName: data.lastName ?? "", email: returning.email.trim().toLowerCase() }));
       } else if (data.noSavedCard) {
-        // Code was right but the card has gone: close the code box, keep the form.
+        // Code was right but there's nothing we can use (no record, or a shared email): close the code box, keep the form.
         resetReturning(data.error);
       } else setReturning((r) => ({ ...r, busy: false, error: data.message ?? data.error ?? "That code didn't work. Check it and try again." }));
     } catch {
@@ -797,6 +852,9 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
       ...(voucherApplied ? { voucherEUR: voucherApplied.appliedMinor / 100 } : {}),
       patient: { firstName: patient.firstName, lastName: patient.lastName, email: patient.email, phone: patient.phone },
       patientKind,
+      ...(verifiedOnFile && !payingWithSavedCard && returning.token
+        ? { returning: { email: returning.email, token: returning.token, missing: returning.missing } }
+        : {}),
     });
   }
 
@@ -809,6 +867,15 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
     }
     if (payingWithSavedCard) return handleChargeSavedCard();
     return handleCheckout();
+  }
+
+  /** What /api/checkout is sent about the patient: their typed details, or the code session and the record's gaps. */
+  function checkoutPatientBody() {
+    if (verifiedOnFile && returning.token) {
+      return { token: returning.token, details: gapAnswers({ ...patient, dateOfBirth: normaliseDateOfBirth(patient.dateOfBirth) }, returning.missing) };
+    }
+    // Padded here too: Forward can reach this step without Continue on step 4.
+    return { patient: { ...patient, dateOfBirth: normaliseDateOfBirth(patient.dateOfBirth) } };
   }
 
   async function handleChargeSavedCard() {
@@ -901,8 +968,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
           privacyAcknowledged,
           marketingOptIn,
           ...voucherBody,
-          // Padded here too: Forward can reach this step without Continue on step 4.
-          patient: { ...patient, dateOfBirth: normaliseDateOfBirth(patient.dateOfBirth) },
+          ...checkoutPatientBody(),
         }),
       });
       const data = await res.json();
@@ -920,6 +986,14 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
       } else if (data.code === "slot_taken" || data.code === "slot_held") {
         setPayError({ message: data.error, slotGone: true });
         slotGone();
+      } else if (data.code === "missing_details") {
+        // Their record changed since the code was checked: ask for what's missing.
+        setReturning((r) => ({ ...r, missing: data.missing ?? r.missing }));
+        setFieldErrors(validate(patient, data.missing ?? returning.missing));
+        goTo(4);
+      } else if (data.code === "session_expired") {
+        resetReturning(data.error);
+        goTo(4);
       } else {
         console.error("Checkout:", data.error, data.ref ?? "");
         if (data.error === "too_many_requests") {
@@ -952,6 +1026,8 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
     setWeekStart(mondayOf(dublinDay(draft.startsAtISO)));
     setSelectedDay(dublinDay(draft.startsAtISO));
     setPatient((p) => ({ ...p, ...draft.patient }));
+    if (draft.returning?.token)
+      setReturning({ ...EMPTY_RETURNING, stage: "verified", email: draft.returning.email, token: draft.returning.token, missing: draft.returning.missing ?? [] });
     setReturnedFromStripe(true);
     goTo(5, { replace: true });
   }, [goTo]);
@@ -1066,7 +1142,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
     practitioner: selectedPractitioner,
     firstAvailable: firstAvailableChosen,
     startsAtISO: selectedTime,
-    patientName: payingWithSavedCard ? "Saved card" : patient.firstName ? `${patient.firstName} ${patient.lastName}`.trim() : null,
+    patientName: payingWithSavedCard && !patient.firstName ? "Saved card" : patient.firstName ? `${patient.firstName} ${patient.lastName}`.trim() : null,
     onChange: (s: Step) => goToStep(s),
   };
 
@@ -1199,7 +1275,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
                     </p>
                     {sameTypeAgain && (
                       <p>
-                        <button type="button" className="btn btn-primary" onClick={() => chooseType(sameTypeAgain)}>
+                        <button type="button" className="btn btn-primary" onClick={() => chooseAgain(sameTypeAgain)}>
                           Book {sameTypeAgain.name} again
                         </button>
                       </p>
@@ -1229,7 +1305,21 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
           <div className="flow-main">
             {shownStep > 1 && <MobileSummary {...summaryProps} />}
 
-            {shownStep === 1 && (
+            {shownStep === 1 && menuMode && (
+              <TreatmentMenu
+                root={bookingMenu.root}
+                hasTypes={appointmentTypes.length > 0}
+                loading={typesLoading}
+                failed={!!typesError || cantBook}
+                selectedId={selectedType?.id ?? null}
+                path={menuPath}
+                onOpen={openMenu}
+                onChoose={chooseFromMenu}
+                headingRef={headingRef}
+              />
+            )}
+
+            {shownStep === 1 && !menuMode && (
               <TreatmentStep
                 types={appointmentTypes}
                 kind={patientKind}
@@ -1306,7 +1396,7 @@ export default function BookingFlow({ reception }: { reception?: { adminKey: str
                 patient={patient}
                 setPatient={(p) => {
                   setPatient(p);
-                  if (Object.keys(fieldErrors).length) setFieldErrors(payingWithSavedCard ? validate(p, returning.missing) : validate(p));
+                  if (Object.keys(fieldErrors).length) setFieldErrors(verifiedOnFile ? validate(p, returning.missing) : validate(p));
                 }}
                 errors={fieldErrors}
                 summaryRef={errorSummaryRef}

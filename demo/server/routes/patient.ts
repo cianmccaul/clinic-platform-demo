@@ -2,8 +2,11 @@
 import { addDays, CLINIC_PHONE, dublinDay, isOutsideCancelWindow } from "@/core/policy";
 import { isTherapistOnlyCategory } from "@/core/areas";
 import { isPhoneOnly } from "@/core/phone-only";
+import { missingDetails } from "@/core/patient-details";
+import { verifiedPatientDetails } from "@/core/returning-checkout";
+import { displayCode, voucherNetMinor } from "@/core/vouchers";
 import { BUSINESS, PRACTITIONERS, practitionerById, practitionerName, priceMinor, TYPES, typeById } from "../clinic";
-import { audit, feeNetPaidMinor, netPaidMinor, nextNum, norm, paidOnline } from "../db";
+import { type Patient, audit, feeNetPaidMinor, netPaidMinor, nextNum, norm, paidOnline } from "../db";
 import { availableTimes, findPatientsByEmail, isSlotAvailable, nextAvailable } from "../diary";
 import { cancelBooking, chargeSaved, moveBooking, mail, rebookChoose, rebookRefund, startCheckout, type CheckoutBody } from "../flows";
 import { fail, ok, route } from "../router";
@@ -46,10 +49,27 @@ route("GET", "/api/available-times", (db, now, req) => {
   return ok({ availableTimes: times.map((t) => ({ appointment_start: t })) });
 });
 
+/** A patient as the diary system (Cliniko) returns them, which is what the shared rules in core/ read. */
+export const asRecord = (p: Patient) => ({ ...p, patient_phone_numbers: p.phone ? [{ phone_type: "Mobile", number: p.phone }] : [], notes: p.gp_name ? `GP: ${p.gp_name}` : "" });
+
 route("POST", "/api/checkout", (db, now, req) => {
-  const b = req.body as CheckoutBody & { policyAccepted?: boolean };
+  const b = req.body as CheckoutBody & { policyAccepted?: boolean; token?: string; details?: Record<string, string> };
   if (isPhoneOnly(b.practitionerId)) return fail(400, { error: `This therapist is booked by phone only. Please call us on ${CLINIC_PHONE}.`, code: "phone_only" });
-  const r = startCheckout(db, now, b);
+  // A returning patient who entered the emailed code sends the code session and only what their record
+  // lacks, instead of typing everything again (core/returning-checkout.ts).
+  let verifiedPatientId: string | undefined;
+  if (typeof b.token === "string" && !b.patient) {
+    const id = tokenPatients(db, now, b.token, "returning")[0];
+    const record = id ? db.patients.find((p) => p.id === id) : undefined;
+    if (!record) return fail(401, { error: "Your code has expired. Ask for a new one, or enter your details instead.", code: "session_expired" });
+    const onFile = verifiedPatientDetails(asRecord(record), b.details ?? {});
+    if (!onFile.usable) return fail(401, { error: "Please enter your details to book.", code: "session_expired" });
+    if (onFile.missing.length) return fail(400, { error: "Please fill in the details we're missing.", code: "missing_details", missing: onFile.missing });
+    verifiedPatientId = record.id;
+    b.patient = { ...onFile.patient, phone: onFile.patient.phone ?? "", dateOfBirth: onFile.patient.dateOfBirth ?? record.date_of_birth ?? "" };
+  }
+  const r = startCheckout(db, now, b, { verifiedPatientId });
+  if (r.booked) return ok({ booked: true, appointmentId: r.booked.appointmentId, url: "/booking/confirmed?booked=1&voucher=1" });
   if (!r.session) return fail(r.status ?? 400, { error: r.error, code: r.code });
   return ok({ url: `/demo-checkout?session=${encodeURIComponent(r.session.id)}` });
 });
@@ -66,9 +86,6 @@ route("GET", "/api/booking-status", (db, _now, req) => {
   return ok({ state: s.payment_status === "paid" ? "processing" : "unpaid" });
 });
 
-route("GET", "/api/vouchers", () => ok({ salesOn: false, checkoutOn: false }));
-route("POST", "/api/vouchers/apply", () => fail(400, { error: "Gift vouchers aren't part of this demo." }));
-
 // ---- one-time codes (returning patients and manage a booking)
 
 function sendCode(db: import("../db").Db, now: number, purpose: "manage" | "returning", email: string) {
@@ -80,7 +97,7 @@ function sendCode(db: import("../db").Db, now: number, purpose: "manage" | "retu
   }
   const code = String(100000 + Math.floor(Math.random() * 900000));
   db.codes.push({ purpose, email: e, code, expiresAt: new Date(now + 10 * 60_000).toISOString() });
-  mail(db, now, e, "code", { code, minutes: "10", purpose: purpose === "manage" ? "manage your booking" : "book with your saved card" });
+  mail(db, now, e, "code", { code, minutes: "10", purpose: purpose === "manage" ? "manage your booking" : "book with the details we have on file" });
 }
 
 function useCode(db: import("../db").Db, now: number, purpose: "manage" | "returning", email: string, code: string) {
@@ -109,9 +126,16 @@ route("POST", "/api/returning-patient/verify", (db, now, req) => {
   if (!token) return fail(400, { error: "That code is incorrect or has expired." });
   const ids = tokenPatients(db, now, token, "returning");
   if (ids.length > 1) return fail(404, { error: "More than one patient uses this email, so please fill in the details below for the person you're booking for.", noSavedCard: true });
-  const card = ids[0] && db.savedCards[ids[0]];
-  if (!card) return fail(404, { error: "There's no card saved for this email, so please fill in your details below.", noSavedCard: true });
-  return ok({ token, card: { brand: card.brand, last4: card.last4 }, missing: [] });
+  const record = db.patients.find((p) => p.id === ids[0]);
+  const noRecord = fail(404, { error: "We couldn't find your details under this email, so please fill them in below.", noSavedCard: true });
+  if (!record) return noRecord;
+  const card = db.savedCards[record.id];
+  // With a saved card they skip the payment page too.
+  if (card) return ok({ token, card: { brand: card.brand, last4: card.last4 }, missing: missingDetails(asRecord(record)), firstName: record.first_name, lastName: record.last_name });
+  // No saved card: their details still come from their record, and they pay by card as usual.
+  const onFile = verifiedPatientDetails(asRecord(record), {});
+  if (!onFile.usable) return noRecord;
+  return ok({ token, card: null, missing: onFile.missing, firstName: onFile.patient.firstName, lastName: onFile.patient.lastName });
 });
 
 route("POST", "/api/charge-returning-patient", (db, now, req) => {
@@ -162,8 +186,36 @@ route("POST", "/api/manage/bookings", (db, now, req) => {
       canReschedule: free,
     };
   });
-  return ok({ bookings });
+  return ok({ bookings, payments: pastPayments(db, ids) });
 });
+
+/**
+ * "Past payments" on Manage a booking: every payment and refund against this
+ * patient's bookings, newest first, so they can check what they were charged
+ * without ringing reception.
+ */
+function pastPayments(db: import("../db").Db, ids: string[]) {
+  const cardText = (id: string) => {
+    const c = db.payments.find((p) => p.id === id)?.card;
+    return c ? `${c.brand[0].toUpperCase()}${c.brand.slice(1)} ending ${c.last4}` : null;
+  };
+  const KIND: Record<string, string> = { full: "Appointment fee", deposit: "Deposit", balance: "Balance", extra: "Extra treatment", late_cancel: "Late cancellation fee", no_show: "Missed appointment fee" };
+  const rows = Object.values(db.bookings)
+    .filter((b) => ids.includes(b.clinikoPatientId))
+    .flatMap((b) => {
+      const base = { appointmentId: b.appointmentId, treatment: (b.appointmentTypeName ?? "Appointment").replace(/ - .*$/, ""), practitionerName: practitionerName(b.practitionerId), appointmentAtISO: b.startsAtISO, cancelled: b.status === "cancelled" };
+      const cards = b.payments.map((p) => ({
+        ...base, id: p.paymentIntentId, paidAtISO: p.at, what: p.kind === "extra" && p.label ? `Extra treatment: ${p.label}` : KIND[p.kind] ?? "Payment",
+        method: cardText(p.paymentIntentId) ?? "Card", amountMinor: p.amountMinor, refundedMinor: p.refundedMinor,
+      }));
+      const voucher = b.voucher
+        ? [{ ...base, id: `voucher-${b.appointmentId}`, paidAtISO: b.voucher.at, what: "Appointment fee", method: `Gift voucher ${displayCode(b.voucher.code)}`, amountMinor: b.voucher.amountMinor, refundedMinor: b.voucher.amountMinor - voucherNetMinor(b.voucher) }]
+        : [];
+      return [...cards, ...voucher];
+    })
+    .sort((a, b) => b.paidAtISO.localeCompare(a.paidAtISO));
+  return rows.slice(0, 30);
+}
 
 function patientRecord(db: import("../db").Db, now: number, token: string, appointmentId: string) {
   const ids = tokenPatients(db, now, token, "manage");

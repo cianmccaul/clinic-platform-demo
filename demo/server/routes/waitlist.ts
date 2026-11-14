@@ -1,15 +1,17 @@
 /** The waitlist: patients join (or reception adds them); when a time opens up that suits them, they're sent a pay link that holds it for 2 hours. */
 import { CLINIC_PHONE, addDays, dublinDay } from "@/core/policy";
-import { MIN_MANUAL_NOTICE_MINUTES, MIN_NOTICE_MINUTES, clampUntilDay, ineligibleReason, joinRefusal, offerExpiry, rankEntries, slotMatchesEntry } from "@/core/waitlist";
+import { MIN_MANUAL_NOTICE_MINUTES, MIN_NOTICE_MINUTES, clampUntilDay, ineligibleReason, joinRefusal, offerExpiry, rankEntries, slotMatchesEntry, channelsFor, waitlistJoinedSms } from "@/core/waitlist";
 import type { DayPart } from "@/core/format";
 import { BUSINESS, PRACTITIONERS, practitionerById, practitionerName, typeById } from "../clinic";
-import { type Db, type WaitlistEntry, audit, norm, nextNum, randomToken } from "../db";
+import { type Db, type WaitlistEntry, audit, norm, nextNum, randomToken, sendText } from "../db";
 import { availableTimes } from "../diary";
 import { mail } from "../flows";
 import { createPayLink, pendingLinkForSlot } from "../paylinks";
 import { fail, ok, route } from "../router";
 
 const BY = "Demo Owner (Owner)";
+/** Texts are switched on in the demo. Production turns them on once Twilio is set up. */
+export const SMS_ON = true;
 const plain = (n?: string) => (n ?? "").replace(/^\d+\.\s*/, "");
 const live = (e: WaitlistEntry) => e.status === "active" || e.status === "paused" || e.status === "offered";
 
@@ -69,12 +71,18 @@ function join(db: Db, now: number, b: any, by?: string) {
   }
 
   db.waitlist.push(entry);
-  mail(db, now, entry.patient.email, "waitlist_joined", {
-    first_name: entry.patient.firstName, treatment: plain(t.name).replace(/ - .*$/, ""), practitioner: pid === "any" ? "any of our therapists" : practitionerName(pid),
-    offer_by: "an email", leave_link: `/waitlist/leave/${entry.leaveToken}`, clinic_phone: CLINIC_PHONE,
-  }, `/waitlist/leave/${entry.leaveToken}`, "Leave or pause my place");
+  // Texts are on in the demo: Irish mobiles are told by text, everyone else by email (core/waitlist.ts channelsFor).
+  const told = channelsFor(entry, SMS_ON)[0];
+  if (told === "sms") {
+    sendText(db, now, entry.patient.phone, `${waitlistJoinedSms({ leaveUrl: "the link below.", phone: CLINIC_PHONE })}\n\n[Pause or leave the waitlist](/waitlist/leave/${entry.leaveToken})`);
+  } else {
+    mail(db, now, entry.patient.email, "waitlist_joined", {
+      first_name: entry.patient.firstName, treatment: plain(t.name).replace(/ - .*$/, ""), practitioner: pid === "any" ? "any of our therapists" : practitionerName(pid),
+      offer_by: "an email", leave_link: `/waitlist/leave/${entry.leaveToken}`, clinic_phone: CLINIC_PHONE,
+    }, `/waitlist/leave/${entry.leaveToken}`, "Leave or pause my place");
+  }
   audit(db, now, { actor: staff ? "reception" : "patient", by, action: staff ? "waitlist.added" : "waitlist.joined" });
-  return ok({ ok: true, id: entry.id, told: "email", until: entry.untilDay, message: staff ? `Added to the waitlist. ${entry.patient.firstName} has been emailed a link to pause or leave the waitlist.` : undefined });
+  return ok({ ok: true, id: entry.id, told, until: entry.untilDay, message: staff ? `Added to the waitlist. ${entry.patient.firstName} has been ${told === "sms" ? "texted" : "emailed"} a link to pause or leave the waitlist.` : undefined });
 }
 
 /** Offer a time to one entry. Manual offers (from the board) may have less notice. */
@@ -83,12 +91,13 @@ function offer(db: Db, now: number, e: WaitlistEntry, slot: { practitionerId: st
   if (e.status !== "active") return { ok: false as const, reason: "not_active" };
   const expiresAt = offerExpiry(slot.startsAtISO, now, manual);
   if (!expiresAt) return { ok: false as const, reason: "too_late" };
-  const r = createPayLink(db, now, { practitionerId: slot.practitionerId, appointmentTypeId: e.appointmentTypeId, startsAtISO: slot.startsAtISO, patient: { ...e.patient }, by, channel: "email", waitlistEntryId: e.id });
+  const channel = channelsFor(e, SMS_ON)[0];
+  const r = createPayLink(db, now, { practitionerId: slot.practitionerId, appointmentTypeId: e.appointmentTypeId, startsAtISO: slot.startsAtISO, patient: { ...e.patient }, by, channel, waitlistEntryId: e.id });
   if ("error" in r) return { ok: false as const, reason: r.code === "link_pending" ? "slot_pending" : "slot_taken" };
   r.link.expiresAt = expiresAt;
   const at = new Date(now).toISOString();
-  Object.assign(e, { status: "offered", lastOfferAt: at, offerLog: [...e.offerLog, at], offer: { payLinkId: r.link.id, startsAtISO: slot.startsAtISO, practitionerId: slot.practitionerId, sentAt: at, expiresAt, channels: ["email"], manual } });
-  return { ok: true as const, sent: ["email"] };
+  Object.assign(e, { status: "offered", lastOfferAt: at, offerLog: [...e.offerLog, at], offer: { payLinkId: r.link.id, startsAtISO: slot.startsAtISO, practitionerId: slot.practitionerId, sentAt: at, expiresAt, channels: [channel], manual } });
+  return { ok: true as const, sent: [channel] };
 }
 
 function withdraw(db: Db, e: WaitlistEntry) {
@@ -142,7 +151,7 @@ function shape(e: WaitlistEntry, now: number) {
 
 // ---- patients
 
-route("GET", "/api/waitlist", () => ok({ smsAvailable: false }));
+route("GET", "/api/waitlist", () => ok({ smsAvailable: SMS_ON }));
 route("POST", "/api/waitlist", (db, now, req) => join(db, now, req.body ?? {}));
 
 route("GET", "/api/waitlist/:token", (db, _now, req) => {
@@ -189,7 +198,7 @@ route("GET", "/api/admin/waitlist", (db, now, req) => {
   const twoWeeksAgo = new Date(now - 14 * 86_400_000).toISOString();
   const open = db.waitlist.filter(live).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const closed = db.waitlist.filter((e) => !live(e) && (e.closedAt ?? "") >= twoWeeksAgo).sort((a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? ""));
-  return ok({ smsAvailable: false, stats: stats(db), open: open.map((e) => shape(e, now)), closed: closed.map((e) => shape(e, now)) });
+  return ok({ smsAvailable: SMS_ON, stats: stats(db), open: open.map((e) => shape(e, now)), closed: closed.map((e) => shape(e, now)) });
 });
 
 route("POST", "/api/admin/waitlist", (db, now, req) => {

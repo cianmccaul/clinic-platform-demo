@@ -8,6 +8,7 @@
  */
 import type { BookingRecord } from "@/lib/bookings";
 import type { WaitlistEntry as CoreWaitlistEntry } from "@/core/waitlist";
+import type { EventKind, VoucherSource, VoucherStatus } from "@/core/vouchers";
 
 export type Patient = {
   id: string;
@@ -18,6 +19,11 @@ export type Patient = {
   date_of_birth: string | null;
   address_1?: string;
   city?: string;
+  /** The rest of what the booking form asks for (core/patient-details.ts); a returning patient is only asked for what is missing. */
+  state?: string;
+  post_code?: string;
+  gp_name?: string;
+  heard_about_us?: string;
   created_at: string;
 };
 
@@ -67,6 +73,12 @@ export type CheckoutSession = {
     startsAtISO: string;
     patient: { firstName: string; lastName: string; email: string; phone: string; dateOfBirth: string };
     visit?: string;
+    /** A returning patient who proved their email with a code: the booking goes onto this record (core/returning-checkout.ts). */
+    verifiedPatientId?: string;
+    /** Part of the fee paid with a gift voucher: set aside until the payment lands. */
+    voucher?: { voucherId: string; code: string; amountMinor: number };
+    /** A gift voucher being bought (no appointment). */
+    voucherPurchaseId?: string;
     payLinkId?: string;
     rebookId?: string;
     visitPaymentId?: string;
@@ -156,11 +168,34 @@ export type Invoice = {
   lines: { label: string; amountMinor: number }[];
 };
 
-export type OutboxEmail = { id: string; to: string; subject: string; text: string; at: string };
+/** Everything the clinic "sent": emails, and texts (channel "sms") now that texts are switched on in the demo. */
+export type OutboxEmail = { id: string; to: string; subject: string; text: string; at: string; channel?: "sms" };
+
+/** A gift voucher and its ledger (production: Postgres, lib/vouchers.ts). The balance is the sum of its lines. */
+export type VoucherEvent = { id: string; at: string; kind: EventKind; amountMinor: number; practitionerId?: string | null; treatmentDay?: string | null; byStaff?: string | null; note?: string; undoOf?: string | null; appointmentId?: string };
+export type Voucher = {
+  id: string;
+  code: string;
+  status: VoucherStatus;
+  source: VoucherSource;
+  amountMinor: number;
+  purchaseDay: string;
+  expiresOn: string;
+  buyerName: string;
+  buyerEmail: string;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  message: string | null;
+  sendOn?: string | null;
+  paymentIntentId?: string;
+  sessionId?: string;
+  emailedAt: string | null;
+  events: VoucherEvent[];
+};
 export type AuditEvent = { at: string; actor: "patient" | "reception" | "system"; by?: string; action: string; appointmentId?: string; amountMinor?: number; note?: string };
 
 export type Db = {
-  version: 4;
+  version: 5;
   seededFor: string;
   seq: number;
   patients: Patient[];
@@ -182,14 +217,15 @@ export type Db = {
   tokens: { token: string; purpose: "manage" | "returning"; patientIds: string[]; expiresAt: string }[];
   processedEvents: string[];
   outbox: OutboxEmail[];
+  vouchers: Voucher[];
   audit: AuditEvent[];
   flags: { onlineBooking: boolean; reason?: string };
 };
 
 export function emptyDb(day: string): Db {
   return {
-    version: 4, seededFor: day, seq: 1000, patients: [], appointments: [], bookings: {}, payments: [], refunds: [], sessions: [], outcomes: {},
-    holds: [], savedCards: {}, rebooks: [], payLinks: [], waitlist: [], visitPayments: [], invoices: [], codes: [], tokens: [], processedEvents: [], outbox: [], audit: [],
+    version: 5, seededFor: day, seq: 1000, patients: [], appointments: [], bookings: {}, payments: [], refunds: [], sessions: [], outcomes: {},
+    holds: [], savedCards: {}, rebooks: [], payLinks: [], waitlist: [], visitPayments: [], invoices: [], codes: [], tokens: [], processedEvents: [], outbox: [], vouchers: [], audit: [],
     flags: { onlineBooking: true },
   };
 }
@@ -210,6 +246,12 @@ export function audit(db: Db, now: number, e: Omit<AuditEvent, "at">) {
 
 export function sendEmail(db: Db, now: number, to: string, subject: string, text: string) {
   db.outbox.unshift({ id: `m${nextNum(db)}`, to, subject, text, at: new Date(now).toISOString() });
+  db.outbox = db.outbox.slice(0, 100);
+}
+
+/** A text message. In production Twilio sends it; here it lands in the demo inbox, marked as a text. */
+export function sendText(db: Db, now: number, to: string, text: string) {
+  db.outbox.unshift({ id: `m${nextNum(db)}`, to, subject: "Text message", text, at: new Date(now).toISOString(), channel: "sms" });
   db.outbox = db.outbox.slice(0, 100);
 }
 

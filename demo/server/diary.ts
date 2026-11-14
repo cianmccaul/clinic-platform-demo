@@ -86,10 +86,11 @@ export function findPatientsByEmail(db: Db, email: string) {
   return db.patients.filter((p) => norm(p.email) === norm(email));
 }
 
-export function findOrCreatePatient(db: Db, now: number, d: { firstName: string; lastName: string; email: string; phone?: string; dateOfBirth?: string }): Patient {
+export function findOrCreatePatient(db: Db, now: number, d: { firstName: string; lastName: string; email: string; phone?: string; dateOfBirth?: string; address?: string; county?: string; eircode?: string; gpName?: string; heardAboutUs?: string }): Patient {
   const found = db.patients.find((p) => norm(p.email) === norm(d.email) && p.last_name.toLowerCase() === d.lastName.trim().toLowerCase() && p.first_name.toLowerCase() === d.firstName.trim().toLowerCase());
   if (found) return found;
-  const p: Patient = { id: nextId(db), first_name: d.firstName.trim(), last_name: d.lastName.trim(), email: d.email.trim(), phone: d.phone ?? "", date_of_birth: d.dateOfBirth || null, created_at: new Date(now).toISOString() };
+  const p: Patient = { id: nextId(db), first_name: d.firstName.trim(), last_name: d.lastName.trim(), email: d.email.trim(), phone: d.phone ?? "", date_of_birth: d.dateOfBirth || null, created_at: new Date(now).toISOString(),
+    ...(d.address ? { address_1: d.address } : {}), ...(d.county ? { state: d.county } : {}), ...(d.eircode ? { post_code: d.eircode } : {}), ...(d.gpName ? { gp_name: d.gpName } : {}), ...(d.heardAboutUs ? { heard_about_us: d.heardAboutUs } : {}) };
   db.patients.push(p);
   return p;
 }

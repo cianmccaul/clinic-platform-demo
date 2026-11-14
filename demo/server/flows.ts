@@ -20,6 +20,8 @@ import { BUSINESS, practitionerById, practitionerName, priceMinor, typeById } fr
 import { type CheckoutSession, type Db, type Rebook, audit, feeNetPaidMinor, netPaidMinor, nextNum, paidOnline, randomToken, sendEmail, stripeId } from "./db";
 import { appendNote, cancelAppointment, createAppointment, findByBookingKey, findOrCreatePatient, getAppointment, hold, isSlotAvailable, moveAppointment, plusMinutes, releaseHold } from "./diary";
 import { charge, entryFor, refundUpTo } from "./stripe";
+import { appliedMinor, checkoutRefusal, displayCode, maskCode } from "@/core/vouchers";
+import { addEvent, availableMinor, balanceMinor, emailVoucher, findVoucher, today } from "./vouchers";
 
 export const SLOT_TAKEN_MESSAGE = "Sorry, someone has just booked that time. Please choose another.";
 const HOLD_MINUTES = 30;
@@ -72,29 +74,58 @@ export type CheckoutBody = {
   businessId?: string;
   startsAtISO: string;
   visit?: string;
-  patient: { firstName: string; lastName: string; email: string; phone: string; dateOfBirth: string };
+  patient: { firstName: string; lastName: string; email: string; phone: string; dateOfBirth: string; address?: string; county?: string; eircode?: string; gpName?: string; heardAboutUs?: string };
+  /** A gift voucher typed at checkout: the code, and what the page said it would cover. */
+  voucher?: { code: string; appliedMinor: number };
 };
 
-export function startCheckout(db: Db, now: number, body: CheckoutBody, extra: { payLinkId?: string } = {}): { session?: CheckoutSession; error?: string; code?: string; status?: number } {
+/** What a voucher would cover of a fee right now, or why it can't be used (production's previewVoucher). */
+export function previewVoucher(db: Db, now: number, typed: string, feeMinor: number) {
+  const v = findVoucher(db, typed);
+  if (!v) return { ok: false as const, message: "We can't find a voucher with that code. Check it against the voucher and try again." };
+  const available = availableMinor(db, v, now);
+  const refusal = checkoutRefusal({ status: v.status, expiresOn: v.expiresOn, availableMinor: available, balanceMinor: balanceMinor(v) }, today(now));
+  if (refusal) return { ok: false as const, message: refusal };
+  const applied = appliedMinor(feeMinor, available);
+  return { ok: true as const, voucher: v, appliedMinor: applied, dueMinor: feeMinor - applied, balanceMinor: balanceMinor(v) };
+}
+
+export function startCheckout(db: Db, now: number, body: CheckoutBody, extra: { payLinkId?: string; verifiedPatientId?: string } = {}): { session?: CheckoutSession; booked?: { appointmentId: string }; error?: string; code?: string; status?: number } {
   if (!db.flags.onlineBooking && !extra.payLinkId) return { error: "Online booking is paused just now. Please call us and we'll book you in.", code: "paused", status: 503 };
   const t = typeById(body.appointmentTypeId);
   const p = practitionerById(body.practitionerId);
   if (!t || !p || !p.offers.includes(t.id)) return { error: "Invalid request.", status: 400 };
   const owner = `checkout:${body.patient.email.toLowerCase()}`;
   if (!isSlotAvailable(db, p.id, t.id, body.startsAtISO, now, { holdOwner: owner })) return { error: SLOT_TAKEN_MESSAGE, code: "slot_taken", status: 409 };
+  // A gift voucher: checked again here, and its part is set aside for as long as the payment page is open.
+  let voucher: CheckoutSession["meta"]["voucher"];
+  if (body.voucher) {
+    const r = previewVoucher(db, now, body.voucher.code, priceMinor(t.id));
+    if (!r.ok) return { error: r.message, code: "voucher", status: 409 };
+    if (r.appliedMinor !== body.voucher.appliedMinor) return { error: "The amount left on this voucher has changed. Apply it again to see what it covers.", code: "voucher", status: 409 };
+    voucher = { voucherId: r.voucher.id, code: r.voucher.code, amountMinor: r.appliedMinor };
+  }
   hold(db, now, { owner, practitionerId: p.id, startsAt: body.startsAtISO, endsAt: plusMinutes(body.startsAtISO, t.duration_in_minutes) }, HOLD_MINUTES);
   const session: CheckoutSession = {
     id: stripeId(db, "cs_test").replace(/_d/, "_"),
     status: "open",
     payment_status: "unpaid",
     account: p.account,
-    amount: priceMinor(t.id),
+    amount: priceMinor(t.id) - (voucher?.amountMinor ?? 0),
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + HOLD_MINUTES * 60_000).toISOString(),
-    meta: { practitionerId: p.id, appointmentTypeId: t.id, businessId: BUSINESS.id, startsAtISO: body.startsAtISO, patient: body.patient, visit: body.visit, payLinkId: extra.payLinkId },
+    meta: { practitionerId: p.id, appointmentTypeId: t.id, businessId: BUSINESS.id, startsAtISO: body.startsAtISO, patient: body.patient, visit: body.visit, payLinkId: extra.payLinkId, ...(extra.verifiedPatientId ? { verifiedPatientId: extra.verifiedPatientId } : {}), ...(voucher ? { voucher } : {}) },
   };
   db.sessions.push(session);
   audit(db, now, { actor: "patient", action: "checkout.started", amountMinor: session.amount });
+  // The voucher pays it all: there's no card payment, so it's booked here and now.
+  if (voucher && session.amount === 0) {
+    session.status = "complete";
+    session.payment_status = "paid";
+    const out = handleCheckoutCompleted(db, now, { id: `evt_${session.id}`, sessionId: session.id });
+    if (out.outcome?.state === "booked") return { session, booked: { appointmentId: out.outcome.appointmentId } };
+    return { error: SLOT_TAKEN_MESSAGE, code: "slot_taken", status: 409 };
+  }
   return { session };
 }
 
@@ -112,12 +143,16 @@ export function payCheckout(db: Db, now: number, sessionId: string, simulate: Si
     s.status = "expired";
     return { error: "This payment page has expired. Please go back and choose your time again." };
   }
-  const pi = charge(db, now, { practitionerId: s.meta.practitionerId, amountMinor: s.amount, description: `${plainType(typeById(s.meta.appointmentTypeId)?.name)} ${whenShort(s.meta.startsAtISO)}` });
+  // A gift voucher is paid to the clinic's own account; an appointment straight to the therapist's.
+  const pi = s.meta.voucherPurchaseId
+    ? charge(db, now, { practitionerId: null, amountMinor: s.amount, description: `Gift voucher ${euro(s.amount)}` })
+    : charge(db, now, { practitionerId: s.meta.practitionerId, amountMinor: s.amount, description: `${plainType(typeById(s.meta.appointmentTypeId)?.name)} ${whenShort(s.meta.startsAtISO)}` });
   s.status = "complete";
   s.payment_status = "paid";
   s.paymentIntentId = pi.id;
 
   if (s.meta.visitPaymentId) return visitPaid(db, now, s);
+  if (s.meta.voucherPurchaseId) return voucherPaid(db, now, s);
 
   if (simulate === "slot_taken") {
     // Reception books the same time by phone while the patient is on the payment page.
@@ -142,7 +177,13 @@ export function handleCheckoutCompleted(db: Db, now: number, event: { id: string
   const m = s.meta;
   const t = typeById(m.appointmentTypeId)!;
   const owner = `checkout:${m.patient.email.toLowerCase()}`;
-  const pi = db.payments.find((x) => x.id === s.paymentIntentId)!;
+  // No card payment at all when a gift voucher covered the whole fee.
+  const pi = db.payments.find((x) => x.id === s.paymentIntentId);
+  /** A returning patient who proved their email: the booking goes onto their own record, and its gaps are filled. */
+  const patientFor = () => {
+    const onFile = m.verifiedPatientId ? db.patients.find((x) => x.id === m.verifiedPatientId) : undefined;
+    return onFile ? fillGaps(onFile, m.patient) : findOrCreatePatient(db, now, m.patient);
+  };
 
   // A pay link's own 2-hour hold on this time belongs to this payment.
   if (m.payLinkId) releaseHold(db, `paylink:${m.payLinkId}`);
@@ -151,7 +192,14 @@ export function handleCheckoutCompleted(db: Db, now: number, event: { id: string
 
   if (!slotFree) {
     // Keep the payment and let them pick another time (production since 3 Nov 2026).
-    const patient = findOrCreatePatient(db, now, m.patient);
+    if (!pi) {
+      // Paid entirely by voucher and the time went: nothing was taken, so there's nothing to keep or refund.
+      db.outcomes[s.id] = { state: "refunded", reason: "slot_taken" };
+      db.processedEvents.push(event.id);
+      releaseHold(db, owner);
+      return { outcome: db.outcomes[s.id] };
+    }
+    const patient = patientFor();
     const token = randomToken();
     const rebook: Rebook = {
       id: `rb${nextNum(db)}`, token, status: "open", createdAt: new Date(now).toISOString(),
@@ -171,20 +219,30 @@ export function handleCheckoutCompleted(db: Db, now: number, event: { id: string
     return { outcome: db.outcomes[s.id] };
   }
 
-  const patient = findOrCreatePatient(db, now, m.patient);
+  const patient = patientFor();
   const appt = already ?? createAppointment(db, now, { patientId: patient.id, practitionerId: m.practitionerId, typeId: t.id, startsAt: m.startsAtISO, bookingKey: s.id, note: m.visit ? `Patient type: ${m.visit}` : undefined });
   const record = db.bookings[appt.id] ?? newRecord(appt, patient, now);
-  if (!record.payments.some((p) => p.paymentIntentId === pi.id)) record.payments.push(entryFor(pi, "full"));
+  if (pi && !record.payments.some((p) => p.paymentIntentId === pi.id)) record.payments.push(entryFor(pi, "full"));
   db.bookings[appt.id] = record;
-  pi.patientId = patient.id;
-  db.savedCards[patient.id] = { ...pi.card, account: pi.account };
+  if (pi) {
+    pi.patientId = patient.id;
+    db.savedCards[patient.id] = { ...pi.card, account: pi.account };
+  }
+  // The voucher's part: one "used" line on its ledger, and a note of it on the booking.
+  const v = m.voucher && db.vouchers.find((x) => x.id === m.voucher!.voucherId);
+  if (v && m.voucher && !record.voucher) {
+    const e = addEvent(db, now, v, { kind: "redeemed", amountMinor: -m.voucher.amountMinor, practitionerId: m.practitionerId, treatmentDay: appt.starts_at.slice(0, 10), note: `Online booking, ${plainType(t.name)}`, appointmentId: appt.id });
+    record.voucher = { voucherId: v.id, code: v.code, holdId: s.id, eventId: e.id, amountMinor: m.voucher.amountMinor, at: e.at };
+    appendNote(db, appt.id, `Gift voucher ${maskCode(v.code)}: ${euro(m.voucher.amountMinor)} used`);
+  }
+  const voucherLine = record.voucher ? ` ${euro(record.voucher.amountMinor)} came off your gift voucher ${displayCode(record.voucher.code)}.` : "";
   db.outcomes[s.id] = { state: "booked", appointmentId: appt.id, startsAtISO: appt.starts_at, appointmentTypeName: plainType(t.name) };
   db.processedEvents.push(event.id);
   releaseHold(db, owner);
   closePayLink(db, now, m.payLinkId, "paid", appt.id);
   sendEmail(db, now, m.patient.email, `Booked: ${plainType(t.name)}, ${whenShort(appt.starts_at)}`,
-    `Hi ${m.patient.firstName},\n\nYou're booked in with ${practitionerName(m.practitionerId)} on ${whenLong(appt.starts_at)}. You've paid ${euro(s.amount)}.\n\nFree to cancel or change until 24 hours before. After that, or if you miss the appointment, the full appointment fee is charged.\n\n[Manage your booking](/manage)`);
-  audit(db, now, { actor: "system", action: "booking.created", appointmentId: appt.id, amountMinor: s.amount });
+    `Hi ${m.patient.firstName},\n\nYou're booked in with ${practitionerName(m.practitionerId)} on ${whenLong(appt.starts_at)}.${s.amount > 0 ? ` You've paid ${euro(s.amount)}.` : ""}${voucherLine}\n\nFree to cancel or change until 24 hours before. After that, or if you miss the appointment, the full appointment fee is charged.\n\n[Manage your booking](/manage)`);
+  audit(db, now, { actor: "system", action: "booking.created", appointmentId: appt.id, amountMinor: s.amount || undefined, note: record.voucher ? `${euro(record.voucher.amountMinor)} by gift voucher` : undefined });
   return { outcome: db.outcomes[s.id] };
 }
 
@@ -200,6 +258,31 @@ function closePayLink(db: Db, now: number, id: string | undefined, status: "paid
     delete entry.offer;
     audit(db, now, { actor: "patient", action: "waitlist.filled", appointmentId });
   }
+}
+
+/** Only empty fields on a record are filled; nothing already there is overwritten (core/patient-details.ts). */
+function fillGaps(p: Db["patients"][number], d: CheckoutBody["patient"]) {
+  if (!p.phone && d.phone) p.phone = d.phone;
+  if (!p.date_of_birth && d.dateOfBirth) p.date_of_birth = d.dateOfBirth;
+  if (!p.address_1 && d.address) p.address_1 = d.address;
+  if (!p.state && d.county) p.state = d.county;
+  if (!p.post_code && d.eircode) p.post_code = d.eircode;
+  if (!p.gp_name && d.gpName) p.gp_name = d.gpName;
+  return p;
+}
+
+/** A gift voucher has been paid for: it becomes usable and is emailed, with its code. */
+function voucherPaid(db: Db, now: number, s: CheckoutSession) {
+  const v = db.vouchers.find((x) => x.id === s.meta.voucherPurchaseId)!;
+  if (v.status === "pending") {
+    v.status = "active";
+    v.paymentIntentId = s.paymentIntentId;
+    addEvent(db, now, v, { kind: "issued", amountMinor: v.amountMinor });
+    emailVoucher(db, now, v);
+    audit(db, now, { actor: "patient", action: "voucher.bought", amountMinor: v.amountMinor });
+  }
+  db.processedEvents.push(`evt_${s.id}`);
+  return { voucher: true as const };
 }
 
 /** Paid for an appointment they've already had: recorded against that appointment. */
@@ -267,6 +350,14 @@ export function cancelBooking(db: Db, now: number, b: BookingRecord, by: "patien
   let refunded = 0;
   let lateFee = 0;
   if (mode === "refund" && held > 0) refunded = refundUpTo(db, now, b, held, by === "patient" ? "Cancelled in good time" : "Cancelled by the clinic", by === "patient" ? "patient" : staffName);
+  // Cancelled in time: what the gift voucher paid goes back on the voucher, not onto a card.
+  let voucherBack = 0;
+  const v = b.voucher && db.vouchers.find((x) => x.id === b.voucher!.voucherId);
+  if (mode === "refund" && v && b.voucher && !b.voucher.returnedMinor) {
+    voucherBack = b.voucher.amountMinor;
+    const e = addEvent(db, now, v, { kind: "undone", amountMinor: voucherBack, undoOf: b.voucher.eventId, note: "Booking cancelled in time", appointmentId: b.appointmentId });
+    Object.assign(b.voucher, { returnedMinor: voucherBack, returnEventId: e.id });
+  }
   if (mode === "charge_full") {
     const owed = Math.max(0, priceMinor(b.appointmentTypeId) - feeNetPaidMinor(b));
     const card = db.savedCards[b.clinikoPatientId];
@@ -286,7 +377,7 @@ export function cancelBooking(db: Db, now: number, b: BookingRecord, by: "patien
     else mail(db, now, b.patientEmail, "cancel_fee", { ...factsFor(b), amount: euro(held + lateFee) });
   }
   audit(db, now, { actor: by === "patient" ? "patient" : "reception", by: by === "clinic" ? staffName : undefined, action: late ? "cancel.late" : "cancel", appointmentId: b.appointmentId, amountMinor: refunded || lateFee || undefined });
-  return { late: mode === "charge_full", refundedMinor: refunded, keptMinor: held - refunded, lateFeeMinor: lateFee, lateFeeFailed: false, voucherReturnedMinor: 0 };
+  return { late: mode === "charge_full", refundedMinor: refunded, keptMinor: held - refunded, lateFeeMinor: lateFee, lateFeeFailed: false, voucherReturnedMinor: voucherBack };
 }
 
 export function moveBooking(db: Db, now: number, b: BookingRecord, newStartsAtISO: string, by: "patient" | "clinic") {

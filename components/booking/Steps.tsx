@@ -902,7 +902,7 @@ export function DetailsStep({
   headingRef,
 }: {
   staff?: boolean;
-  /** A first visit can't have a saved card yet, so the shortcut isn't offered. */
+  /** A first visit has no record with us yet, so the shortcut isn't offered. */
   newPatient?: boolean;
   patient: Patient;
   setPatient: (p: Patient) => void;
@@ -917,7 +917,8 @@ export function DetailsStep({
   devFill?: () => void;
   headingRef: RefObject<HTMLHeadingElement>;
 }) {
-  const saved = returning.stage === "verified" && returning.card;
+  // Code entered: their details come from their record (saved card or not), so only the gaps are asked.
+  const saved = returning.stage === "verified" && !!returning.token;
   const set = (k: keyof Patient) => (e: { target: { value: string } }) => setPatient({ ...patient, [k]: e.target.value });
   const err = (k: DetailField) =>
     errors[k] ? (
@@ -1030,6 +1031,7 @@ export function DetailsStep({
       {saved && (
         <form
           noValidate
+          style={{ marginTop: "var(--space-5)" }}
           onSubmit={(e) => {
             e.preventDefault();
             onContinue();
@@ -1081,17 +1083,33 @@ function ReturningPatient({
       </Notice>
     );
   }
+  // No saved card: their record is used, and they pay by card on the payment page (core/returning-checkout.ts).
+  if (r.stage === "verified" && r.token) {
+    return (
+      <Notice tone="success" title="We've found your details">
+        <p>
+          {r.missing.length
+            ? "We have most of your details on file. Please fill in the few we're missing below."
+            : "Your details are already on file, so there's nothing to fill in."}{" "}
+          You&apos;ll pay by card on the next screen.
+        </p>
+        <button className="link-button" onClick={onReset}>
+          Enter my details instead
+        </button>
+      </Notice>
+    );
+  }
   return (
     <div className="notice returning-panel">
       <Icon name="info" />
       <div className="notice-body">
-        <p className="notice-title">Booked with us online before?</p>
+        <p className="notice-title">Been to see us before?</p>
         {r.stage === "idle" && (
           <>
-            <p>You can use your saved card and skip most of this form.</p>
+            <p>We can email you a code and use the details we already have, so you don&apos;t have to type them again.</p>
             <div>
               <button className="btn btn-secondary" onClick={() => setReturning({ ...r, stage: "open", error: null })}>
-                Use my saved card
+                Use my details on file
               </button>
             </div>
           </>
@@ -1106,7 +1124,7 @@ function ReturningPatient({
             }}
           >
             <div className="field">
-              <label htmlFor="returning-email">Email you booked with</label>
+              <label htmlFor="returning-email">Email you gave us</label>
               <input
                 id="returning-email"
                 type="email"
@@ -1131,12 +1149,12 @@ function ReturningPatient({
             onChange={(code) => setReturning({ ...r, code })}
             onSubmit={onVerify}
             onResend={onStart}
-            submitLabel="Use saved card"
+            submitLabel="Continue"
             error={r.error}
             intro={
               <>
-                We&apos;ve emailed a 6-digit code to <strong>{r.email}</strong>. Enter it to use your saved card. No email after a minute? Check
-                your spam, or fill in your details below instead.
+                We&apos;ve emailed a 6-digit code to <strong>{r.email}</strong>. Enter it to use the details we have on file. No email after a
+                minute? Check your spam, or fill in your details below instead.
               </>
             }
           />

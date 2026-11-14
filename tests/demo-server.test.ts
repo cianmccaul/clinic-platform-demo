@@ -16,6 +16,7 @@ import "@/demo/server/routes/reception";
 import "@/demo/server/routes/money";
 import "@/demo/server/routes/waitlist";
 import "@/demo/server/routes/readonly";
+import "@/demo/server/routes/vouchers";
 
 // A Tuesday morning in Dublin.
 const NOW = Date.parse("2026-11-10T09:15:00Z");
