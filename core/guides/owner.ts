@@ -7,7 +7,10 @@ export const OWNER_GUIDES: Guide[] = [
     audience: "owner",
     title: "Clinic KPIs",
     summary: "New and returning patients, rebooking, cancellations, no-shows and revenue.",
-    updated: "2026-11-10",
-    blocks: [{ type: "text", text: "Open **Clinic KPIs** for the month so far, per therapist and for the whole clinic. Numbers come from the diary and the payments, recalculated each night." }],
+    updated: "2026-11-14",
+    blocks: [
+      { type: "text", text: "Open **Clinic KPIs** for the month so far, per therapist and for the whole clinic. Numbers come from the diary and the payments, recalculated each night." },
+      { type: "picture", shot: { id: "kpis", alt: "The Clinic KPIs page for the month so far, with its headline figures." }, caption: "In this demo the report runs on the demo's own diary." },
+    ],
   },
 ];

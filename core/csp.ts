@@ -22,8 +22,7 @@ export function dashboardCsp(nonce: string, opts: { stripe?: boolean; dev?: bool
     "font-src 'self'",
     "img-src 'self' data: https:",
     `connect-src 'self'${stripe ? " https://api.stripe.com" : ""}`,
-    // Loom: the staff guides' videos (core/guides/start-here.ts).
-    `frame-src https://www.loom.com${stripe ? " https://js.stripe.com https://hooks.stripe.com" : ""}`,
+    `frame-src ${stripe ? "https://js.stripe.com https://hooks.stripe.com" : "'none'"}`,
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "form-action 'self'",

@@ -223,7 +223,7 @@ route("POST", "/api/admin/patient-lookup", (db, now, req) => {
     const { last, next } = lastAndNext(db, now, p.id);
     audit(db, now, { actor: "reception", by: BY, action: "patient.lookup.open" });
     return ok({
-      patient: { firstName: p.first_name, lastName: p.last_name, email: p.email, phone: p.phone, dateOfBirth: p.date_of_birth ?? "", address: p.address_1 ?? "", county: "", eircode: "", gpName: "" },
+      patient: { firstName: p.first_name, lastName: p.last_name, email: p.email, phone: p.phone, dateOfBirth: p.date_of_birth ?? "", address: p.address_1 ?? "", county: p.state ?? "", eircode: p.post_code ?? "", gpName: p.gp_name ?? "" },
       last, next, suggestedKind: suggestedKind(last?.startsAtISO, now),
     });
   }

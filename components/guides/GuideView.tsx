@@ -4,7 +4,7 @@ import { anchorFor, parseInline, resolveHref } from "@/core/guides/inline";
 import { AUDIENCE_LABEL, type Block, type Guide, type GuideStep, type ResolvedShot } from "@/core/guides/types";
 
 /**
- * Shows one guide: steps with a picture each and the part to press circled.
+ * Shows one guide: steps with a picture each, the parts to press boxed and numbered.
  * Purely presentational (no state, no data fetching), so the public help
  * centre renders it on the server and the dashboard renders it from the
  * staff guides API. The circles are drawn over the screenshot, not baked in,
@@ -31,50 +31,12 @@ export function Inline({ text, book }: { text: string; book: string }) {
   );
 }
 
-/** A Loom video with its chapters, or "coming soon" until it's recorded (types.ts). */
-function Video({ block }: { block: Extract<Block, { type: "video" }> }) {
-  const loom = !!block.loomId && /^[a-f0-9]{32}$/.test(block.loomId);
-  return (
-    <figure className="guide-video">
-      {block.src ? (
-        <div className="guide-video-frame">
-          <video src={block.src} poster={block.poster} controls preload="metadata" playsInline title={block.title} />
-        </div>
-      ) : loom ? (
-        <div className="guide-video-frame">
-          <iframe
-            src={`https://www.loom.com/embed/${block.loomId}?hide_owner=true&hide_share=true&hide_title=true`}
-            title={block.title}
-            allow="fullscreen"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        </div>
-      ) : (
-        <div className="guide-video-frame is-empty">
-          <Icon name="clock" />
-          <span>Video coming soon</span>
-        </div>
-      )}
-      <figcaption>
-        <strong>{block.title}</strong> · about {block.minutes} min
-        {block.chapters.length > 0 && (
-          <ol className="guide-video-chapters">
-            {block.chapters.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ol>
-        )}
-      </figcaption>
-    </figure>
-  );
-}
-
 const PAD = 10; // space between the thing and its circle, in screenshot pixels
 
 export function Shot({ shot, alt, caption, book }: { shot: ResolvedShot; alt: string; caption?: string; book: string }) {
   const { width, height } = shot;
+  const labels = shot.marks.map((m) => m.label ?? "");
+  const hasLabels = labels.some(Boolean);
   return (
     <figure className={`guide-shot is-${shot.device}`}>
       <a className="guide-shot-frame" href={shot.src} target="_blank" rel="noopener" style={{ aspectRatio: `${width} / ${height}` }}>
@@ -82,26 +44,50 @@ export function Shot({ shot, alt, caption, book }: { shot: ResolvedShot; alt: st
         <img src={shot.src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
         <span className="visually-hidden"> (opens full size in a new tab)</span>
         {shot.marks.length > 0 && (
-          <svg className="guide-marks" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <svg className="guide-marks" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
             {shot.marks.map((m, i) => {
               const x = Math.max(m.x * width - PAD, 2);
               const y = Math.max(m.y * height - PAD, 2);
               const w = Math.min(m.w * width + PAD * 2, width - x - 2);
               const h = Math.min(m.h * height + PAD * 2, height - y - 2);
-              const r = Math.min(h / 2, 32);
+              const r = Math.min(h / 2, 14);
+              // The callout sits on the box's top-left corner, kept inside the picture.
+              // Phone pictures are shown narrow, so their callouts are drawn larger to read at the same size.
+              const R = Math.round(width / (shot.device === "phone" ? 20 : 44));
+              const cx = Math.min(Math.max(x, R + 2), width - R - 2);
+              const cy = Math.min(Math.max(y, R + 2), height - R - 2);
               return (
                 <g key={i}>
                   <rect className="guide-mark-halo" x={x} y={y} width={w} height={h} rx={r} ry={r} vectorEffect="non-scaling-stroke" />
                   <rect className="guide-mark" x={x} y={y} width={w} height={h} rx={r} ry={r} vectorEffect="non-scaling-stroke" />
+                  <circle className="guide-mark-dot" cx={cx} cy={cy} r={R} vectorEffect="non-scaling-stroke" />
+                  <text className="guide-mark-num" x={cx} y={cy} fontSize={R * 1.15} textAnchor="middle" dominantBaseline="central">
+                    {i + 1}
+                  </text>
                 </g>
               );
             })}
           </svg>
         )}
       </a>
-      {caption && (
+      {(caption || hasLabels) && (
         <figcaption>
-          <Inline text={caption} book={book} />
+          {caption && <Inline text={caption} book={book} />}
+          {hasLabels && (
+            <ol className="guide-shot-legend">
+              {labels.map((l, i) => (
+                <li key={i}>
+                  <span className="guide-shot-legend-num" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <span>
+                    <span className="visually-hidden">{i + 1}: </span>
+                    {l}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </figcaption>
       )}
     </figure>
@@ -211,8 +197,6 @@ function BlockView({ block, shots, book }: { block: Block; shots: Record<string,
       const shot = shots[block.shot.id];
       return shot ? <Shot shot={shot} alt={block.shot.alt} caption={block.caption} book={book} /> : null;
     }
-    case "video":
-      return <Video block={block} />;
   }
 }
 

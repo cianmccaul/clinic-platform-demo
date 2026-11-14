@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "guide-shots": "node scripts/guide-shots.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "13.3.0",

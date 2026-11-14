@@ -27,6 +27,9 @@ const NAMES = [
   "Brian Nash", "Megan Tierney", "Oisín Flood", "Rachel Coyle", "Adam Furlong", "Katie Lennon", "Declan Farrell", "Aisling Fox",
 ];
 
+const STREETS = ["Quay Street", "Mill Lane", "Harbour Road", "Church Avenue", "Orchard Park", "Canal Walk", "Station Road"];
+const GPS = ["Nolan, Northside Medical", "Byrne, Riverside Practice", "Keane, Harbour Health", "Daly, Parkside Surgery"];
+
 export function rng(seed: number) {
   return () => {
     seed |= 0;
@@ -54,6 +57,8 @@ export function seedDb(now: number): Db {
       phone: `08${1 + Math.floor(rand() * 8)} 555 0${100 + Math.floor(rand() * 899)}`,
       date_of_birth: `19${50 + Math.floor(rand() * 50)}-0${1 + Math.floor(rand() * 9)}-1${Math.floor(rand() * 9)}`,
       created_at: new Date(now - (30 + rand() * 600) * 86_400_000).toISOString(),
+      // The rest of the record, so a lookup or a returning-patient booking finds their details on file.
+      address_1: `${3 + ((i * 7) % 60)} ${STREETS[i % STREETS.length]}`, state: "Dublin", gp_name: `Dr ${GPS[i % GPS.length]}`,
     };
     db.patients.push(p);
     return p;

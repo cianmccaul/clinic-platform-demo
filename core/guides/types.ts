@@ -21,9 +21,9 @@ export const AUDIENCE_LABEL: Record<Audience, string> = {
   owner: "For owners",
 };
 
-/** A screenshot shown under a step, with the part to press circled. */
+/** A screenshot shown under a step, with the parts to press boxed and numbered. */
 export type ShotRef = {
-  /** Key in core/guides/shots.json (made by scripts/guides/capture.mjs). */
+  /** Key in core/guides/shots.ts (written by scripts/guide-shots.mjs, which captures them from the running demo). */
   id: string;
   /** What the picture shows and what's circled, for screen readers. */
   alt: string;
@@ -44,15 +44,7 @@ export type Block =
   | { type: "list"; items: string[] }
   | { type: "table"; head: string[]; rows: string[][] }
   | { type: "callout"; tone: "info" | "warning" | "error" | "success"; title: string; text?: string; items?: string[] }
-  | { type: "picture"; shot: ShotRef; caption?: string }
-  /**
-   * A video with its chapter list. Either our own file in public/guide-video/
-   * (`src` "/guide-video/x.mp4", optional `poster` image), or a Loom video
-   * (`loomId`, the 32-character id after loom.com/share/; staff guides only,
-   * because only the dashboard's CSP allows Loom frames). With neither, the
-   * block shows "Video coming soon".
-   */
-  | { type: "video"; title: string; minutes: number; chapters: string[]; src?: string; poster?: string; loomId?: string };
+  | { type: "picture"; shot: ShotRef; caption?: string };
 
 export type Guide = {
   slug: string;
@@ -65,15 +57,18 @@ export type Guide = {
   blocks: Block[];
 };
 
-/** A captured screenshot (core/guides/shots.json). Marks are fractions of the picture (0–1). */
+/**
+ * A captured screenshot (core/guides/shots.ts). Marks are fractions of the picture (0–1): each is a
+ * highlight box with a numbered callout, and its label is listed under the picture.
+ */
 export type ShotData = {
   file: string;
   width: number;
   height: number;
   device: "phone" | "desktop";
-  /** true: in public/guide-img (patient guides). false: content/staff-guide-images, sent only to signed-in staff. */
+  /** true: in public/guide-img. (Production keeps staff screenshots private; the demo's are all of made-up data.) */
   public: boolean;
-  marks: { x: number; y: number; w: number; h: number }[];
+  marks: { x: number; y: number; w: number; h: number; label?: string }[];
 };
 
 /** A screenshot ready to show: where to load it from, plus its size and marks. */
